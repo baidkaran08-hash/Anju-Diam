@@ -1,0 +1,161 @@
+@import "tailwindcss";
+
+/*
+ * Brand tokens, taken directly from the Anju Diam brand board.
+ * Colour hierarchy on the board: plum 40, ivory 30, stone 15, gold 10, charcoal 5.
+ */
+@theme {
+  --color-plum: #4F243C;
+  --color-wine: #6B3A56;
+  --color-gold: #C8A46A;
+  --color-ivory: #F8F5F1;
+  --color-stone: #D9D2CC;
+  --color-charcoal: #2D2B2C;
+  --color-taupe: #B79A95;
+  --color-mauve: #8D6578;
+  --color-ink: #140A10;
+
+  --font-display: "Playfair Display", Iowan Old Style, Times New Roman, serif;
+  --font-body: "Montserrat", Helvetica Neue, Arial, sans-serif;
+}
+
+@layer base {
+  html {
+    scroll-behavior: smooth;
+  }
+  body {
+    background: var(--color-ink);
+    color: var(--color-ivory);
+    font-family: var(--font-body);
+    font-weight: 300;
+    -webkit-font-smoothing: antialiased;
+  }
+  h1, h2, h3 {
+    font-family: var(--font-display);
+    font-weight: 400;
+  }
+  :focus-visible {
+    outline: 2px solid var(--color-gold);
+    outline-offset: 4px;
+  }
+}
+
+@layer components {
+  /* The utility face: small, tracked, uppercase. Used for labels and data. */
+  .label {
+    font-size: 0.65rem;
+    font-weight: 500;
+    letter-spacing: 0.26em;
+    text-transform: uppercase;
+    line-height: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+  *, *::before, *::after {
+    animation-duration: 0.001ms !important;
+    transition-duration: 0.001ms !important;
+  }
+}
+
+/* ─────────── MASTHEAD ───────────
+   Transparent at every scroll position. A filled bar would slide over the
+   hero film and cut the subject, so legibility comes from the glass pill and
+   a text shadow instead of a background. Only the ink colour changes. */
+@layer components {
+  .masthead {
+    position: fixed;
+    inset-inline: 0;
+    top: 0;
+    z-index: 120;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    padding: 18px clamp(20px, 4.4vw, 72px);
+    background: transparent;
+    color: var(--nav-ink);
+    transition: color 0.5s ease;
+  }
+  .brand { display: flex; align-items: center; }
+  .brand-lock { display: flex; align-items: center; gap: 11px; }
+  .brand-lock img:first-child { height: 30px; width: auto; }
+  .brand-lock img:last-child { height: 15px; width: auto; }
+  /* Lift the gold lockup off the film without darkening the frame. */
+  body[data-theme="dark"] .brand-lock.on-dark { filter: drop-shadow(0 1px 12px rgba(20, 10, 16, 0.75)); }
+  body[data-theme="dark"] .on-light,
+  body[data-theme="light"] .on-dark { display: none; }
+
+  .nav { display: flex; align-items: center; gap: 2px; padding: 5px; border-radius: 999px; }
+  .nav a {
+    font-size: 0.65rem; font-weight: 500; letter-spacing: 0.26em; text-transform: uppercase;
+    color: var(--nav-dim); padding: 10px 15px; border-radius: 999px;
+    transition: color 0.3s, background 0.3s;
+  }
+  .nav a:hover { color: var(--color-gold); }
+  .nav a.is-current { color: var(--color-gold); background: rgb(200 164 106 / 0.13); }
+  .nav-cta { margin-left: 5px; border: 1px solid rgb(200 164 106 / 0.5); color: var(--color-gold) !important; }
+  .nav-cta:hover { background: var(--color-gold); color: var(--color-ink) !important; }
+  .nav-toggle {
+    display: none; font-size: 0.65rem; font-weight: 500; letter-spacing: 0.26em;
+    text-transform: uppercase; color: var(--color-gold); padding: 12px 17px; border-radius: 999px;
+  }
+
+  @media (max-width: 900px) {
+    .nav {
+      position: fixed; top: 72px; right: clamp(20px, 4.4vw, 72px);
+      flex-direction: column; align-items: stretch; padding: 10px;
+      border-radius: 16px; min-width: 206px;
+      opacity: 0; visibility: hidden; transform: translateY(-8px);
+      transition: opacity 0.35s, visibility 0.35s, transform 0.35s;
+    }
+    .nav.is-open { opacity: 1; visibility: visible; transform: none; }
+    .nav a { padding: 14px 16px; border-radius: 10px; }
+    .nav-cta { margin: 4px 0 0; }
+    .nav-toggle { display: block; }
+  }
+
+  /* Frosted surface, used on the nav pill, filter bar, product tiles and
+     process cards. Tints with the page theme. */
+  .glass {
+    background: var(--glass-bg);
+    backdrop-filter: blur(18px) saturate(1.25);
+    -webkit-backdrop-filter: blur(18px) saturate(1.25);
+    border: 1px solid var(--glass-line);
+  }
+}
+
+@theme {
+  --nav-ink: #F8F5F1;
+  --nav-dim: rgb(248 245 241 / 0.74);
+  --glass-bg: rgb(248 245 241 / 0.07);
+  --glass-line: rgb(248 245 241 / 0.16);
+}
+
+body[data-theme="light"] {
+  --nav-ink: #4F243C;
+  --nav-dim: rgb(45 43 44 / 0.72);
+  --glass-bg: rgb(255 255 255 / 0.5);
+  --glass-line: rgb(79 36 60 / 0.14);
+}
+
+/* ─────────── CURSOR ─────────── */
+.cur-dot, .cur-ring {
+  position: fixed; top: 0; left: 0; z-index: 400;
+  pointer-events: none; border-radius: 50%; opacity: 0;
+  transition: opacity 0.35s;
+}
+.cur-dot { width: 5px; height: 5px; margin: -2.5px 0 0 -2.5px; background: var(--color-gold); }
+.cur-ring {
+  width: 34px; height: 34px; margin: -17px 0 0 -17px; border: 1px solid var(--color-gold);
+  transition: opacity 0.35s, width 0.32s cubic-bezier(0.22, 0.61, 0.36, 1),
+    height 0.32s cubic-bezier(0.22, 0.61, 0.36, 1), margin 0.32s cubic-bezier(0.22, 0.61, 0.36, 1),
+    background 0.32s;
+}
+body.cursor-on .cur-dot, body.cursor-on .cur-ring { opacity: 1; }
+body.cursor-hot .cur-ring {
+  width: 56px; height: 56px; margin: -28px 0 0 -28px; background: rgb(200 164 106 / 0.16);
+}
+body.cursor-hot .cur-dot { opacity: 0; }
+@media (hover: none), (pointer: coarse) { .cur-dot, .cur-ring { display: none; } }

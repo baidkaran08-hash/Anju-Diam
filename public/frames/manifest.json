@@ -1,0 +1,20 @@
+{
+  "sourceSupplied": "AnjuDiam1.zip - 240 frames, 1280x720 JPEG, ~23 KB each",
+  "sourceIsNot4K": true,
+  "pipeline": "native resolution, GaussianBlur(0.5) to soften inherited JPEG blocking, WebP q90. No upscale, no sharpening.",
+  "frameCount": 240,
+  "pad": 4,
+  "format": "webp",
+  "desktop": {
+    "width": 1280,
+    "height": 720,
+    "quality": 90,
+    "sizeMB": 9.77
+  },
+  "mobile": {
+    "width": 854,
+    "height": 480,
+    "quality": 84,
+    "sizeMB": 5.68
+  }
+}
