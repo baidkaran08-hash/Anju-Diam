@@ -14,7 +14,9 @@
     "db:studio": "prisma studio",
     "catalogue:import": "tsx scripts/import-catalogue.ts",
     "frames:build": "tsx scripts/build-frames.ts",
-    "logo:build": "tsx scripts/build-logo.ts"
+    "logo:build": "tsx scripts/build-logo.ts",
+    "start:prod": "tsx scripts/prepare-production.ts && next start -p ${PORT:-3000}",
+    "db:backup": "tsx scripts/backup-db.ts"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"

@@ -557,34 +557,73 @@ before anyone assumes it has hung.
 
 ### 2. Deploy
 
-Vercel is the path of least resistance: import the repo and set the environment
-variables below.
+**Render, on a paid instance with a persistent disk.** `render.yaml` in the
+repository root configures the whole service — connect the repo as a Blueprint
+and it reads that file.
 
-**Two things must change before it works in production**, both because Vercel's
-filesystem is ephemeral and does not survive a deploy:
+The disk is the point. The database and the uploaded product photography both
+live on it, so the site runs in production exactly as it runs on your laptop:
+no migration to a managed database, no move to object storage, nothing to get
+wrong before launch. On a serverless host both would reset on every deploy.
 
-| What | Why | Fix |
+1. Push to GitHub (step 1 above).
+2. Render → **New → Blueprint** → pick the repository. It reads `render.yaml`.
+3. Fill in the three values it asks for:
+   - `NEXT_PUBLIC_SITE_URL` → `https://www.anjudiam.com`
+   - `SEED_ADMIN_EMAIL` → your studio login
+   - `SEED_ADMIN_PASSWORD` → a real password, not the seeded default
+4. Deploy. First boot creates the database on the disk and seeds the placeholder
+   catalogue; later boots leave it alone.
+
+`npm run start:prod` runs `scripts/prepare-production.ts` before the server.
+That pushes the schema (a no-op when unchanged) and **seeds only when the
+database is empty** — without that guard, every deploy would resurrect the 250
+placeholder pieces over the real catalogue.
+
+`/api/health` is the health check. It counts active products rather than just
+returning 200, so a process that is up but cannot read its own catalogue is
+correctly reported as unhealthy.
+
+A service with a disk runs as one instance and takes a few seconds of downtime
+while a deploy swaps over. For this site that is the right trade.
+
+The same `start:prod` works unchanged on Railway or Fly with a volume, or on a
+plain VPS — set `DATABASE_URL` and `MEDIA_DIR` to paths on the persistent
+storage.
+
+### 3. Point the domain at it
+
+In Render: **Settings → Custom Domains** → add both `anjudiam.com` and
+`www.anjudiam.com`. Render shows the exact targets; at your registrar's DNS:
+
+| Record | Name | Value |
 | --- | --- | --- |
-| **Database** | SQLite is a file on disk. It resets on every deploy. | Provision Postgres (Neon, Supabase, Railway), set `DATABASE_URL`, change `provider` to `postgresql` in `prisma/schema.prisma`, then run `db:push` and `db:seed` once against it. The schema needs no other edits. |
-| **Uploads** | Product photographs are written to `./media`. They vanish on redeploy. | Point `MEDIA_DIR` at a mounted volume, or swap the two `writeFile` calls in `src/app/api/admin/upload/route.ts` for an S3 / R2 / Vercel Blob put. The database only stores the URL. |
+| `CNAME` | `www` | the `onrender.com` hostname Render gives you |
+| `ALIAS` / `ANAME` / `CNAME flattening` | `@` | the same hostname |
 
-Neither matters on a single always-on server (a VPS, Render, Fly with a volume),
-where the defaults are fine as they are.
+If your registrar only offers plain `A` records at the root — many do — use the
+IP address Render lists for the apex instead of an ALIAS. Do not invent one; it
+is shown on that screen.
 
-### 3. Environment variables
+DNS takes anywhere from minutes to a few hours. SSL is issued automatically once
+the records resolve; until then the domain will warn, which is expected rather
+than broken. Set `NEXT_PUBLIC_SITE_URL` to whichever of the two you treat as
+canonical, and let the other redirect.
 
-| Variable | Needed | Notes |
-| --- | --- | --- |
-| `DATABASE_URL` | Yes | Postgres connection string in production |
-| `AUTH_SECRET` | Yes | `openssl rand -base64 32` — sessions forge without it |
-| `NEXT_PUBLIC_SITE_URL` | Yes | `https://www.anjudiam.com` |
-| `NEXT_PUBLIC_WHATSAPP` | No | `66831636736`; blank hides the floating button |
-| `MEDIA_DIR` | On ephemeral hosts | Where uploaded photography is written |
-| `SMTP_HOST` / `SMTP_PORT` / `SMTP_USER` / `SMTP_PASS` | No | Gmail App Password. Unset, enquiries still save but nothing is emailed |
-| `ENQUIRY_INBOX` | No | Defaults to `SMTP_USER` |
-| `SEED_ADMIN_EMAIL` / `SEED_ADMIN_PASSWORD` | Before first seed | **Change these.** The default studio password is in this README |
+### Backups
 
-### 4. Before it goes public
+The whole catalogue, every enquiry and every order live in one SQLite file on
+the disk. Before anything risky — a catalogue import, a schema change, a plan
+change — take a snapshot:
+
+```bash
+npm run db:backup
+```
+
+It uses SQLite's own `.backup`, so a snapshot is consistent even with the server
+running. Render can also snapshot the disk itself; both are worth having.
+
+### Before it goes public
 
 - [ ] Change the studio password — `admin@anjudiam.com` / `changeme-in-production` is the seeded default
 - [ ] Set a real `AUTH_SECRET`
@@ -592,6 +631,7 @@ where the defaults are fine as they are.
 - [ ] Confirm `+66 83 163 6736` actually takes WhatsApp, or clear `NEXT_PUBLIC_WHATSAPP`
 - [ ] Replace the placeholder catalogue with the real product file (`npm run catalogue:import`)
 - [ ] Point the domain at the deployment and update `NEXT_PUBLIC_SITE_URL`
+- [ ] Take a first backup once the real catalogue is in (`npm run db:backup`)
 
 ### Bandwidth
 

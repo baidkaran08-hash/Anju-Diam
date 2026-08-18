@@ -1,0 +1,63 @@
+# Render blueprint — connect the repository and this configures the service.
+#
+# A persistent disk is the whole point: the SQLite database and the uploaded
+# product photography both live on it, so the site runs exactly as it does
+# locally with no migration to object storage or a managed database.
+#
+# A service with a disk runs as a single instance and has a few seconds of
+# downtime while a deploy swaps over. For this site that is the right trade.
+services:
+  - type: web
+    name: anju-diam
+    runtime: node
+    region: singapore # closest to Bangkok and to the Indian market
+    plan: starter # a disk requires a paid instance; free instances sleep
+    # --include=dev is required: Render sets NODE_ENV=production, which makes
+    # npm omit devDependencies — and the build needs TypeScript and Tailwind
+    # while the start command needs tsx and the Prisma CLI.
+    buildCommand: npm ci --include=dev && npm run build
+    startCommand: npm run start:prod
+    healthCheckPath: /api/health
+    autoDeploy: true
+
+    disk:
+      name: anju-data
+      mountPath: /var/data
+      sizeGB: 5
+
+    envVars:
+      - key: NODE_VERSION
+        value: "22"
+
+      # Both live on the persistent disk, not in the container filesystem.
+      - key: DATABASE_URL
+        value: file:/var/data/anju.db
+      - key: MEDIA_DIR
+        value: /var/data/media
+
+      # Generated once by Render and kept. Sessions forge without a real one.
+      - key: AUTH_SECRET
+        generateValue: true
+
+      # sync: false means "ask me in the dashboard" — set these yourself.
+      - key: NEXT_PUBLIC_SITE_URL
+        sync: false
+      - key: SEED_ADMIN_EMAIL
+        sync: false
+      - key: SEED_ADMIN_PASSWORD
+        sync: false
+
+      - key: NEXT_PUBLIC_WHATSAPP
+        value: "66831636736"
+
+      # Optional — leave unset and enquiries still save, they just do not email.
+      - key: SMTP_HOST
+        sync: false
+      - key: SMTP_PORT
+        sync: false
+      - key: SMTP_USER
+        sync: false
+      - key: SMTP_PASS
+        sync: false
+      - key: ENQUIRY_INBOX
+        sync: false

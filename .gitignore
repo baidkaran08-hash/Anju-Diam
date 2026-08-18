@@ -11,3 +11,6 @@ media
 
 # Next.js ambient types, regenerated on every build.
 next-env.d.ts
+
+# Database snapshots from `npm run db:backup`.
+prisma/backups
