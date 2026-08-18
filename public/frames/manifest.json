@@ -1,20 +1,33 @@
 {
-  "sourceSupplied": "AnjuDiam1.zip - 240 frames, 1280x720 JPEG, ~23 KB each",
-  "sourceIsNot4K": true,
-  "pipeline": "native resolution, GaussianBlur(0.5) to soften inherited JPEG blocking, WebP q90. No upscale, no sharpening.",
-  "frameCount": 240,
+  "source": "300 frames, 1920x1080 JPEG",
+  "pipeline": "star watermark painted out by row interpolation · lanczos3 resample · unsharp mask · WebP",
+  "aspectRatio": 1.7778,
+  "backdrop": "#A48769",
+  "frameCount": 300,
   "pad": 4,
   "format": "webp",
-  "desktop": {
-    "width": 1280,
-    "height": 720,
-    "quality": 90,
-    "sizeMB": 9.77
-  },
-  "mobile": {
-    "width": 854,
-    "height": 480,
-    "quality": 84,
-    "sizeMB": 5.68
-  }
+  "poster": "data:image/webp;base64,UklGRnwAAABXRUJQVlA4IHAAAAAwBQCdASogABIAPu1mqk6ppaOiKA1RMB2JYwC06BEyi4zoqRZz29lQJ3cNCrG3uaM4AAD3pGvlrtRNtFyiLMSrr30l0t47se+viDX2W+aUCCad53aLXHdrpRrd2TUoiMumI3o2Bg+H36oT0UupIAAA",
+  "variants": [
+    {
+      "name": "ultra",
+      "width": 3456,
+      "height": 1944,
+      "quality": 72,
+      "totalMB": 32.79
+    },
+    {
+      "name": "desktop",
+      "width": 2304,
+      "height": 1296,
+      "quality": 78,
+      "totalMB": 23.55
+    },
+    {
+      "name": "mobile",
+      "width": 1152,
+      "height": 648,
+      "quality": 78,
+      "totalMB": 8.99
+    }
+  ]
 }

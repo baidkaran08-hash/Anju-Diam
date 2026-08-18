@@ -1,161 +1,542 @@
 @import "tailwindcss";
 
-/*
- * Brand tokens, taken directly from the Anju Diam brand board.
- * Colour hierarchy on the board: plum 40, ivory 30, stone 15, gold 10, charcoal 5.
- */
-@theme {
-  --color-plum: #4F243C;
-  --color-wine: #6B3A56;
-  --color-gold: #C8A46A;
-  --color-ivory: #F8F5F1;
-  --color-stone: #D9D2CC;
-  --color-charcoal: #2D2B2C;
-  --color-taupe: #B79A95;
-  --color-mauve: #8D6578;
-  --color-ink: #140A10;
+/* ───────────────────────────────────────────────────────────────────────────
+   Anju Diam — design tokens
 
-  --font-display: "Playfair Display", Iowan Old Style, Times New Roman, serif;
-  --font-body: "Montserrat", Helvetica Neue, Arial, sans-serif;
+   Palette is lifted directly from the brand sheet, including the 40/30/15/10/5
+   colour hierarchy it specifies. Plum dominates, ivory carries the editorial
+   sections, gold is the only accent and is rationed hard: hairlines, small-caps
+   labels, focus rings. Nothing else is gold.
+   ─────────────────────────────────────────────────────────────────────────── */
+
+@theme {
+  --color-plum: #4f243c;
+  --color-wine: #6b3a56;
+  --color-gold: #c8a46a;
+  --color-ivory: #f8f5f1;
+  --color-stone: #d9d2cc;
+  --color-graphite: #2d2b2c;
+  --color-taupe: #b79a95;
+  --color-mauve: #8d6578;
+
+  /* Not on the sheet — a plum pushed to near-black, for the cinematic
+     sections where the frame sequence needs to sit on something that reads
+     as unlit rather than as a colour. */
+  --color-ink: #140a10;
+
+  --font-display: var(--font-playfair), "Playfair Display", ui-serif, Georgia, serif;
+  --font-body: var(--font-montserrat), "Montserrat", ui-sans-serif, system-ui, sans-serif;
+
+  --ease-luxe: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-drift: cubic-bezier(0.65, 0, 0.35, 1);
 }
+
+/* ── Base ─────────────────────────────────────────────────────────────────── */
 
 @layer base {
+  * {
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
   html {
     scroll-behavior: smooth;
+    background-color: var(--color-ink);
   }
+
   body {
-    background: var(--color-ink);
-    color: var(--color-ivory);
+    background-color: var(--color-ivory);
+    color: var(--color-graphite);
     font-family: var(--font-body);
     font-weight: 300;
-    -webkit-font-smoothing: antialiased;
+    letter-spacing: 0.01em;
+    overflow-x: hidden;
   }
-  h1, h2, h3 {
+
+  ::selection {
+    background-color: var(--color-gold);
+    color: var(--color-ink);
+  }
+
+  :focus-visible {
+    outline: 1px solid var(--color-gold);
+    outline-offset: 3px;
+  }
+
+  /* The sequence canvas and any pinned stage should never show a focus ring. */
+  canvas:focus-visible {
+    outline: none;
+  }
+
+  h1,
+  h2,
+  h3,
+  h4 {
     font-family: var(--font-display);
     font-weight: 400;
+    letter-spacing: -0.015em;
   }
-  :focus-visible {
-    outline: 2px solid var(--color-gold);
-    outline-offset: 4px;
+
+  input,
+  textarea,
+  select,
+  button {
+    font: inherit;
+    color: inherit;
+  }
+
+  input::placeholder,
+  textarea::placeholder {
+    color: color-mix(in srgb, var(--color-graphite) 40%, transparent);
   }
 }
 
-@layer components {
-  /* The utility face: small, tracked, uppercase. Used for labels and data. */
-  .label {
-    font-size: 0.65rem;
-    font-weight: 500;
-    letter-spacing: 0.26em;
-    text-transform: uppercase;
-    line-height: 1;
+/* ── Typography utilities ─────────────────────────────────────────────────── */
+
+@utility display-xl {
+  font-family: var(--font-display);
+  font-size: clamp(2.5rem, 5.6vw, 5.25rem);
+  line-height: 0.94;
+  letter-spacing: -0.03em;
+  font-weight: 400;
+}
+
+/* Hero headline. Smaller than display-xl, which is sized for a full-width
+   masthead — in the hero's right-hand column that broke every line in two. */
+@utility display-hero {
+  font-family: var(--font-display);
+  font-size: clamp(2.25rem, 4.3vw, 4.15rem);
+  line-height: 1.0;
+  letter-spacing: -0.028em;
+  font-weight: 400;
+}
+
+@utility display-lg {
+  font-family: var(--font-display);
+  font-size: clamp(2.25rem, 5vw, 4.25rem);
+  line-height: 1.02;
+  letter-spacing: -0.025em;
+  font-weight: 400;
+}
+
+@utility display-md {
+  font-family: var(--font-display);
+  font-size: clamp(1.75rem, 3.2vw, 2.75rem);
+  line-height: 1.12;
+  letter-spacing: -0.02em;
+  font-weight: 400;
+}
+
+@utility display-sm {
+  font-family: var(--font-display);
+  font-size: clamp(1.3rem, 2vw, 1.75rem);
+  line-height: 1.22;
+  letter-spacing: -0.015em;
+  font-weight: 400;
+}
+
+/* Small-caps eyebrow. Used everywhere the brand needs to speak quietly. */
+@utility label {
+  font-family: var(--font-body);
+  font-size: 0.6875rem;
+  font-weight: 500;
+  letter-spacing: 0.26em;
+  text-transform: uppercase;
+  line-height: 1;
+}
+
+@utility label-sm {
+  font-family: var(--font-body);
+  font-size: 0.625rem;
+  font-weight: 500;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  line-height: 1;
+}
+
+@utility body-lg {
+  font-size: clamp(1rem, 1.15vw, 1.1875rem);
+  line-height: 1.72;
+  font-weight: 300;
+}
+
+@utility measure {
+  max-width: 62ch;
+}
+
+/* Copy set directly on the film.
+   The hero footage is a warm champagne studio backdrop, and wine on champagne
+   is only about 2.7:1 — under the 3:1 that large text needs. Rather than lay a
+   wash over the picture and flatten the very colour that makes the shot, the
+   lift goes on the glyphs themselves: a diffuse ivory halo that reads as light
+   coming off the backdrop and leaves every pixel of the film untouched. */
+@utility on-film {
+  text-shadow:
+    0 0 28px color-mix(in srgb, var(--color-ivory) 62%, transparent),
+    0 0 10px color-mix(in srgb, var(--color-ivory) 48%, transparent),
+    0 1px 2px color-mix(in srgb, var(--color-ivory) 40%, transparent);
+}
+
+/* The same trick for light type over a dark ground. */
+@utility on-film-dark {
+  text-shadow:
+    0 0 26px color-mix(in srgb, var(--color-ink) 70%, transparent),
+    0 0 9px color-mix(in srgb, var(--color-ink) 55%, transparent),
+    0 1px 2px color-mix(in srgb, var(--color-ink) 45%, transparent);
+}
+
+/* ── Surfaces ─────────────────────────────────────────────────────────────── */
+
+/* Film grain. Sits over cinematic sections at very low opacity — enough to
+   stop large flat plum fields from banding on cheap panels. */
+@utility grain {
+  position: relative;
+
+  &::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    opacity: 0.035;
+    z-index: 30;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3'/%3E%3C/filter%3E%3Crect width='140' height='140' filter='url(%23n)'/%3E%3C/svg%3E");
   }
 }
+
+@utility vignette {
+  &::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    z-index: 20;
+    background: radial-gradient(
+      ellipse at center,
+      transparent 42%,
+      color-mix(in srgb, var(--color-ink) 62%, transparent) 100%
+    );
+  }
+}
+
+@utility hairline {
+  border-top: 1px solid color-mix(in srgb, var(--color-gold) 26%, transparent);
+}
+
+/* ── Glass ─────────────────────────────────────────────────────────────────
+   iOS-style material rather than a plain blur. Four things do the work, and
+   leaving any of them out is what makes web "glassmorphism" look fake:
+
+   1. saturate() alongside blur — iOS boosts chroma behind the panel, which is
+      why colour bleeds through as colour instead of grey mush
+   2. a specular top edge — a 1px white inset highlight reading as a lit bevel
+   3. a darker inset on the bottom edge, so the panel has thickness
+   4. a wide, soft drop shadow so it floats above the content rather than
+      sitting flat on it
+
+   Where there is no backdrop-filter support the tint falls back to near-opaque,
+   because translucent-without-blur is unreadable over photography.
+   ────────────────────────────────────────────────────────────────────────── */
+
+@utility glass {
+  position: relative;
+  background-color: color-mix(in srgb, var(--color-plum) 44%, transparent);
+  backdrop-filter: blur(24px) saturate(180%);
+  -webkit-backdrop-filter: blur(24px) saturate(180%);
+  border: 1px solid color-mix(in srgb, white 13%, transparent);
+  box-shadow:
+    inset 0 1px 0 0 color-mix(in srgb, white 20%, transparent),
+    inset 0 -1px 0 0 color-mix(in srgb, black 14%, transparent),
+    0 16px 48px -16px color-mix(in srgb, var(--color-ink) 70%, transparent);
+
+  @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+    background-color: color-mix(in srgb, var(--color-plum) 92%, transparent);
+  }
+}
+
+/* For light grounds — ivory sections, the catalogue control bar. */
+@utility glass-light {
+  position: relative;
+  background-color: color-mix(in srgb, var(--color-ivory) 62%, transparent);
+  backdrop-filter: blur(20px) saturate(170%);
+  -webkit-backdrop-filter: blur(20px) saturate(170%);
+  border: 1px solid color-mix(in srgb, white 55%, transparent);
+  box-shadow:
+    inset 0 1px 0 0 color-mix(in srgb, white 70%, transparent),
+    inset 0 -1px 0 0 color-mix(in srgb, var(--color-graphite) 6%, transparent),
+    0 14px 40px -18px color-mix(in srgb, var(--color-graphite) 30%, transparent);
+
+  @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+    background-color: color-mix(in srgb, var(--color-ivory) 96%, transparent);
+  }
+}
+
+/* Small pill — badges, floating controls, chapter markers. */
+@utility glass-chip {
+  background-color: color-mix(in srgb, var(--color-ink) 38%, transparent);
+  backdrop-filter: blur(14px) saturate(170%);
+  -webkit-backdrop-filter: blur(14px) saturate(170%);
+  border: 1px solid color-mix(in srgb, white 16%, transparent);
+  box-shadow:
+    inset 0 1px 0 0 color-mix(in srgb, white 22%, transparent),
+    0 6px 20px -8px color-mix(in srgb, var(--color-ink) 65%, transparent);
+
+  @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+    background-color: color-mix(in srgb, var(--color-ink) 82%, transparent);
+  }
+}
+
+/* iOS continuous-corner feel. Squircles are not available on the web, but a
+   generous radius with a matched inner radius gets most of the way. */
+@utility glass-r {
+  border-radius: 1.25rem;
+}
+
+@utility glass-r-sm {
+  border-radius: 0.75rem;
+}
+
+/* ── Motion ───────────────────────────────────────────────────────────────── */
+
+@utility reveal {
+  opacity: 0;
+  transform: translate3d(0, 22px, 0);
+  transition:
+    opacity 1.1s var(--ease-luxe),
+    transform 1.1s var(--ease-luxe);
+  transition-delay: var(--reveal-delay, 0ms);
+}
+
+@utility reveal-in {
+  opacity: 1;
+  transform: none;
+}
+
+/* Character-level rise for display headings. */
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translate3d(0, 0.5em, 0);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes draw-line {
+  from {
+    transform: scaleX(0);
+  }
+  to {
+    transform: scaleX(1);
+  }
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: -140% 0;
+  }
+  100% {
+    background-position: 240% 0;
+  }
+}
+
+@keyframes drift-up {
+  from {
+    opacity: 0;
+    transform: translate3d(0, 14px, 0);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@utility drift-in {
+  animation: drift-up 0.9s var(--ease-luxe) both;
+}
+
+/* Gold sweep across a placeholder while catalogue data resolves. */
+@utility shimmering {
+  background-image: linear-gradient(
+    100deg,
+    transparent 20%,
+    color-mix(in srgb, var(--color-gold) 16%, transparent) 45%,
+    transparent 70%
+  );
+  background-size: 220% 100%;
+  animation: shimmer 2.4s var(--ease-drift) infinite;
+}
+
+/* ── Controls ─────────────────────────────────────────────────────────────── */
+
+@utility btn-gold {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  padding: 1.05rem 2.35rem;
+  background-color: var(--color-gold);
+  color: var(--color-ink);
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.24em;
+  text-transform: uppercase;
+  border: 1px solid var(--color-gold);
+  transition:
+    background-color 0.5s var(--ease-luxe),
+    color 0.5s var(--ease-luxe),
+    transform 0.5s var(--ease-luxe);
+
+  &:hover {
+    background-color: transparent;
+    color: var(--color-gold);
+  }
+
+  &:active {
+    transform: translateY(1px);
+  }
+
+  &:disabled {
+    opacity: 0.45;
+    pointer-events: none;
+  }
+}
+
+@utility btn-outline {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  padding: 1.05rem 2.35rem;
+  background-color: transparent;
+  color: currentColor;
+  font-size: 0.6875rem;
+  font-weight: 500;
+  letter-spacing: 0.24em;
+  text-transform: uppercase;
+  border: 1px solid color-mix(in srgb, currentColor 34%, transparent);
+  transition:
+    border-color 0.5s var(--ease-luxe),
+    background-color 0.5s var(--ease-luxe),
+    color 0.5s var(--ease-luxe);
+
+  &:hover {
+    border-color: var(--color-gold);
+    color: var(--color-gold);
+  }
+
+  &:disabled {
+    opacity: 0.45;
+    pointer-events: none;
+  }
+}
+
+/* Text link with a gold rule that wipes in from the left. */
+@utility link-rule {
+  position: relative;
+  display: inline-block;
+  padding-bottom: 0.35rem;
+
+  &::after {
+    content: "";
+    position: absolute;
+    left: 0;
+    bottom: 0;
+    height: 1px;
+    width: 100%;
+    background-color: var(--color-gold);
+    transform: scaleX(0);
+    transform-origin: left;
+    transition: transform 0.6s var(--ease-luxe);
+  }
+
+  &:hover::after {
+    transform: scaleX(1);
+  }
+}
+
+@utility field {
+  width: 100%;
+  background-color: transparent;
+  border: 0;
+  border-bottom: 1px solid color-mix(in srgb, currentColor 22%, transparent);
+  padding: 0.85rem 0;
+  font-size: 0.9375rem;
+  font-weight: 300;
+  transition: border-color 0.45s var(--ease-luxe);
+
+  &:focus {
+    outline: none;
+    border-bottom-color: var(--color-gold);
+  }
+}
+
+/* ── Layout ───────────────────────────────────────────────────────────────── */
+
+@utility shell {
+  width: 100%;
+  margin-inline: auto;
+  padding-inline: 1.5rem;
+  max-width: 88rem;
+
+  @media (min-width: 768px) {
+    padding-inline: 3rem;
+  }
+
+  @media (min-width: 1280px) {
+    padding-inline: 4.5rem;
+  }
+}
+
+@utility shell-narrow {
+  width: 100%;
+  margin-inline: auto;
+  padding-inline: 1.5rem;
+  max-width: 60rem;
+
+  @media (min-width: 768px) {
+    padding-inline: 3rem;
+  }
+}
+
+/* ── Scrollbar ────────────────────────────────────────────────────────────── */
+
+@layer base {
+  ::-webkit-scrollbar {
+    width: 9px;
+  }
+
+  ::-webkit-scrollbar-track {
+    background: var(--color-ink);
+  }
+
+  ::-webkit-scrollbar-thumb {
+    background: color-mix(in srgb, var(--color-gold) 42%, transparent);
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    background: var(--color-gold);
+  }
+}
+
+/* ── Reduced motion ───────────────────────────────────────────────────────── */
 
 @media (prefers-reduced-motion: reduce) {
-  html { scroll-behavior: auto; }
-  *, *::before, *::after {
-    animation-duration: 0.001ms !important;
-    transition-duration: 0.001ms !important;
-  }
-}
-
-/* ─────────── MASTHEAD ───────────
-   Transparent at every scroll position. A filled bar would slide over the
-   hero film and cut the subject, so legibility comes from the glass pill and
-   a text shadow instead of a background. Only the ink colour changes. */
-@layer components {
-  .masthead {
-    position: fixed;
-    inset-inline: 0;
-    top: 0;
-    z-index: 120;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 1rem;
-    padding: 18px clamp(20px, 4.4vw, 72px);
-    background: transparent;
-    color: var(--nav-ink);
-    transition: color 0.5s ease;
-  }
-  .brand { display: flex; align-items: center; }
-  .brand-lock { display: flex; align-items: center; gap: 11px; }
-  .brand-lock img:first-child { height: 30px; width: auto; }
-  .brand-lock img:last-child { height: 15px; width: auto; }
-  /* Lift the gold lockup off the film without darkening the frame. */
-  body[data-theme="dark"] .brand-lock.on-dark { filter: drop-shadow(0 1px 12px rgba(20, 10, 16, 0.75)); }
-  body[data-theme="dark"] .on-light,
-  body[data-theme="light"] .on-dark { display: none; }
-
-  .nav { display: flex; align-items: center; gap: 2px; padding: 5px; border-radius: 999px; }
-  .nav a {
-    font-size: 0.65rem; font-weight: 500; letter-spacing: 0.26em; text-transform: uppercase;
-    color: var(--nav-dim); padding: 10px 15px; border-radius: 999px;
-    transition: color 0.3s, background 0.3s;
-  }
-  .nav a:hover { color: var(--color-gold); }
-  .nav a.is-current { color: var(--color-gold); background: rgb(200 164 106 / 0.13); }
-  .nav-cta { margin-left: 5px; border: 1px solid rgb(200 164 106 / 0.5); color: var(--color-gold) !important; }
-  .nav-cta:hover { background: var(--color-gold); color: var(--color-ink) !important; }
-  .nav-toggle {
-    display: none; font-size: 0.65rem; font-weight: 500; letter-spacing: 0.26em;
-    text-transform: uppercase; color: var(--color-gold); padding: 12px 17px; border-radius: 999px;
+  html {
+    scroll-behavior: auto;
   }
 
-  @media (max-width: 900px) {
-    .nav {
-      position: fixed; top: 72px; right: clamp(20px, 4.4vw, 72px);
-      flex-direction: column; align-items: stretch; padding: 10px;
-      border-radius: 16px; min-width: 206px;
-      opacity: 0; visibility: hidden; transform: translateY(-8px);
-      transition: opacity 0.35s, visibility 0.35s, transform 0.35s;
-    }
-    .nav.is-open { opacity: 1; visibility: visible; transform: none; }
-    .nav a { padding: 14px 16px; border-radius: 10px; }
-    .nav-cta { margin: 4px 0 0; }
-    .nav-toggle { display: block; }
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
   }
 
-  /* Frosted surface, used on the nav pill, filter bar, product tiles and
-     process cards. Tints with the page theme. */
-  .glass {
-    background: var(--glass-bg);
-    backdrop-filter: blur(18px) saturate(1.25);
-    -webkit-backdrop-filter: blur(18px) saturate(1.25);
-    border: 1px solid var(--glass-line);
+  .reveal {
+    opacity: 1;
+    transform: none;
   }
 }
-
-@theme {
-  --nav-ink: #F8F5F1;
-  --nav-dim: rgb(248 245 241 / 0.74);
-  --glass-bg: rgb(248 245 241 / 0.07);
-  --glass-line: rgb(248 245 241 / 0.16);
-}
-
-body[data-theme="light"] {
-  --nav-ink: #4F243C;
-  --nav-dim: rgb(45 43 44 / 0.72);
-  --glass-bg: rgb(255 255 255 / 0.5);
-  --glass-line: rgb(79 36 60 / 0.14);
-}
-
-/* ─────────── CURSOR ─────────── */
-.cur-dot, .cur-ring {
-  position: fixed; top: 0; left: 0; z-index: 400;
-  pointer-events: none; border-radius: 50%; opacity: 0;
-  transition: opacity 0.35s;
-}
-.cur-dot { width: 5px; height: 5px; margin: -2.5px 0 0 -2.5px; background: var(--color-gold); }
-.cur-ring {
-  width: 34px; height: 34px; margin: -17px 0 0 -17px; border: 1px solid var(--color-gold);
-  transition: opacity 0.35s, width 0.32s cubic-bezier(0.22, 0.61, 0.36, 1),
-    height 0.32s cubic-bezier(0.22, 0.61, 0.36, 1), margin 0.32s cubic-bezier(0.22, 0.61, 0.36, 1),
-    background 0.32s;
-}
-body.cursor-on .cur-dot, body.cursor-on .cur-ring { opacity: 1; }
-body.cursor-hot .cur-ring {
-  width: 56px; height: 56px; margin: -28px 0 0 -28px; background: rgb(200 164 106 / 0.16);
-}
-body.cursor-hot .cur-dot { opacity: 0; }
-@media (hover: none), (pointer: coarse) { .cur-dot, .cur-ring { display: none; } }

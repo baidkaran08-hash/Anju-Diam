@@ -1,0 +1,17 @@
+# Normalise line endings so a Windows checkout does not rewrite every file.
+* text=auto eol=lf
+
+# Binary assets — never diffed, never merged.
+*.webp  binary
+*.png   binary
+*.jpg   binary
+*.jpeg  binary
+*.avif  binary
+*.ico   binary
+*.woff  binary
+*.woff2 binary
+
+# The hero frame sequence is generated output, not hand-written source. Keeping
+# it out of language stats stops GitHub reporting the repo as mostly images.
+public/frames/**  linguist-generated=true
+public/logo/**    linguist-generated=true

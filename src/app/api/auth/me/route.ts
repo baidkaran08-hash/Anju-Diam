@@ -1,7 +1,4 @@
-import { ok } from "@/lib/api";
-import { currentUser } from "@/lib/auth";
+import { getSessionUser } from "@/lib/auth";
+import { ok, route } from "@/lib/api";
 
-/** GET /api/auth/me — null when signed out, never a 401, so the header can render either way. */
-export async function GET() {
-  return ok({ user: await currentUser() });
-}
+export const GET = route(async () => ok({ user: await getSessionUser() }));

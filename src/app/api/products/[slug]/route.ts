@@ -1,20 +1,11 @@
-import { prisma } from "@/lib/prisma";
-import { ok, fail } from "@/lib/api";
+import { getProductBySlug, getRelated } from "@/lib/catalogue";
+import { fail, ok, route } from "@/lib/api";
 
-/** GET /api/products/:slug — one piece, plus three from the same category. */
-export async function GET(_request: Request, ctx: { params: Promise<{ slug: string }> }) {
-  const { slug } = await ctx.params;
+export const GET = route(async (_request: Request, context: { params: Promise<{ slug: string }> }) => {
+  const { slug } = await context.params;
+  const product = await getProductBySlug(slug);
+  if (!product) return fail("No such piece.", 404);
 
-  const product = await prisma.product.findUnique({ where: { slug } });
-  if (!product || product.status !== "ACTIVE") {
-    return fail("That piece is no longer available.", 404);
-  }
-
-  const related = await prisma.product.findMany({
-    where: { category: product.category, status: "ACTIVE", NOT: { id: product.id } },
-    take: 3,
-    orderBy: { isFeatured: "desc" },
-  });
-
+  const related = await getRelated(product);
   return ok({ product, related });
-}
+});

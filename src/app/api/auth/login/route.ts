@@ -1,20 +1,30 @@
 import { prisma } from "@/lib/prisma";
-import { ok, fail, fromZod } from "@/lib/api";
+import { createSession, verifyPassword } from "@/lib/auth";
+import { mergeGuestInto } from "@/lib/owner";
 import { loginSchema } from "@/lib/validation";
-import { verifyPassword, createSession } from "@/lib/auth";
+import { fail, ok, readJson, route } from "@/lib/api";
+import { clientIp, rateLimit } from "@/lib/rate-limit";
+import type { Role } from "@/lib/enums";
 
-/** POST /api/auth/login */
-export async function POST(request: Request) {
-  const parsed = loginSchema.safeParse(await request.json().catch(() => null));
-  if (!parsed.success) return fromZod(parsed.error);
+export const POST = route(async (request: Request) => {
+  const limit = rateLimit(`login:${clientIp(request)}`, 10, 15 * 60 * 1000);
+  if (!limit.ok) return fail("Too many attempts. Please try again shortly.", 429);
 
-  const user = await prisma.user.findUnique({ where: { email: parsed.data.email.toLowerCase() } });
+  const input = loginSchema.parse(await readJson(request));
+  const user = await prisma.user.findUnique({ where: { email: input.email } });
 
-  // Same message either way — do not reveal which accounts exist.
-  const invalid = fail("That email and password do not match.", 401);
-  if (!user) return invalid;
-  if (!(await verifyPassword(parsed.data.password, user.passwordHash))) return invalid;
+  // Same message and roughly the same work either way, so the response does not
+  // reveal whether an address is registered.
+  const valid = user ? await verifyPassword(input.password, user.passwordHash) : false;
+  if (!user || !valid) return fail("Those details do not match an account.", 401);
 
-  await createSession({ userId: user.id, role: user.role });
+  await mergeGuestInto(user.id);
+  await createSession({
+    id: user.id,
+    email: user.email,
+    name: user.name,
+    role: user.role as Role,
+  });
+
   return ok({ user: { id: user.id, email: user.email, name: user.name, role: user.role } });
-}
+});

@@ -4,3 +4,10 @@ node_modules
 .env.local
 .DS_Store
 *.log
+raw-frames
+prisma/dev.db*
+*.tsbuildinfo
+media
+
+# Next.js ambient types, regenerated on every build.
+next-env.d.ts

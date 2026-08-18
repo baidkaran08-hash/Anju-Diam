@@ -1,8 +1,7 @@
-import { ok } from "@/lib/api";
 import { destroySession } from "@/lib/auth";
+import { ok, route } from "@/lib/api";
 
-/** POST /api/auth/logout */
-export async function POST() {
+export const POST = route(async () => {
   await destroySession();
-  return ok({ message: "Signed out." });
-}
+  return ok({ ok: true });
+});

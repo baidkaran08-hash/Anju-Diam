@@ -1,29 +1,37 @@
 import { prisma } from "@/lib/prisma";
-import { ok, fail, fromZod } from "@/lib/api";
+import { createSession, hashPassword } from "@/lib/auth";
+import { mergeGuestInto } from "@/lib/owner";
 import { registerSchema } from "@/lib/validation";
-import { hashPassword, createSession } from "@/lib/auth";
+import { fail, ok, readJson, route } from "@/lib/api";
+import { clientIp, rateLimit } from "@/lib/rate-limit";
 
-/** POST /api/auth/register */
-export async function POST(request: Request) {
-  const parsed = registerSchema.safeParse(await request.json().catch(() => null));
-  if (!parsed.success) return fromZod(parsed.error);
+export const POST = route(async (request: Request) => {
+  const limit = rateLimit(`register:${clientIp(request)}`, 5, 60 * 60 * 1000);
+  if (!limit.ok) return fail("Too many attempts. Please try again later.", 429);
 
-  const email = parsed.data.email.toLowerCase();
-  if (await prisma.user.findUnique({ where: { email } })) {
-    return fail("An account already exists for that email. Sign in instead.", 409);
+  const input = registerSchema.parse(await readJson(request));
+
+  const existing = await prisma.user.findUnique({ where: { email: input.email } });
+  if (existing) {
+    return fail("Please check the highlighted fields.", 422, {
+      fields: { email: "An account already exists for that address." },
+    });
   }
 
   const user = await prisma.user.create({
     data: {
-      email,
-      name: parsed.data.name,
-      phone: parsed.data.phone || null,
-      passwordHash: await hashPassword(parsed.data.password),
-      cart: { create: {} },
+      email: input.email,
+      name: input.name,
+      phone: input.phone || null,
+      passwordHash: await hashPassword(input.password),
+      role: "CUSTOMER",
     },
     select: { id: true, email: true, name: true, role: true },
   });
 
-  await createSession({ userId: user.id, role: user.role });
-  return ok({ user }, 201);
-}
+  // Anything picked out before registering follows the visitor into the account.
+  await mergeGuestInto(user.id);
+  await createSession({ ...user, role: "CUSTOMER" });
+
+  return ok({ user }, { status: 201 });
+});

@@ -1,96 +1,33 @@
-import { prisma } from "@/lib/prisma";
-import { ok, fail, fromZod } from "@/lib/api";
-import { getSession } from "@/lib/auth";
-import { cartItemSchema } from "@/lib/validation";
+import { ok, fail, readJson, route } from "@/lib/api";
+import { getSessionUser } from "@/lib/auth";
+import { getOrCreateOwnerKey } from "@/lib/owner";
+import { addToCart, clearCart, getCart, serialiseCart, setCartQuantity } from "@/lib/cart";
+import { cartItemSchema, cartUpdateSchema } from "@/lib/validation";
 
-async function cartFor(userId: string) {
-  return prisma.cart.upsert({
-    where: { userId },
-    update: {},
-    create: { userId },
-    include: { items: { include: { product: true } } },
-  });
-}
+export const GET = route(async () => {
+  const key = await getOrCreateOwnerKey();
+  return ok(serialiseCart(await getCart(key)));
+});
 
-function total(items: { quantity: number; product: { priceMinor: number } }[]) {
-  return items.reduce((sum, item) => sum + item.quantity * item.product.priceMinor, 0);
-}
+export const POST = route(async (request: Request) => {
+  const input = cartItemSchema.parse(await readJson(request));
+  const key = await getOrCreateOwnerKey();
+  const user = await getSessionUser();
 
-/** GET /api/cart */
-export async function GET() {
-  const session = await getSession();
-  if (!session) return fail("Sign in to see your bag.", 401);
+  const result = await addToCart(key, input.productId, input.quantity, input.note || undefined, user?.id);
+  if ("error" in result) return fail(result.error, 404);
 
-  const cart = await cartFor(session.userId);
-  return ok({ items: cart.items, totalMinor: total(cart.items) });
-}
+  return ok(serialiseCart(result.cart));
+});
 
-/** POST /api/cart — add a piece, or bump quantity if it is already in the bag. */
-export async function POST(request: Request) {
-  const session = await getSession();
-  if (!session) return fail("Sign in to add pieces to your bag.", 401);
+export const PATCH = route(async (request: Request) => {
+  const input = cartUpdateSchema.parse(await readJson(request));
+  const key = await getOrCreateOwnerKey();
+  return ok(serialiseCart(await setCartQuantity(key, input.productId, input.quantity)));
+});
 
-  const parsed = cartItemSchema.safeParse(await request.json().catch(() => null));
-  if (!parsed.success) return fromZod(parsed.error);
-
-  const product = await prisma.product.findUnique({ where: { id: parsed.data.productId } });
-  if (!product || product.status !== "ACTIVE") return fail("That piece is not available.", 404);
-
-  const cart = await cartFor(session.userId);
-  await prisma.cartItem.upsert({
-    where: { cartId_productId: { cartId: cart.id, productId: product.id } },
-    update: { quantity: { increment: parsed.data.quantity }, note: parsed.data.note },
-    create: {
-      cartId: cart.id,
-      productId: product.id,
-      quantity: parsed.data.quantity,
-      note: parsed.data.note,
-    },
-  });
-
-  const updated = await cartFor(session.userId);
-  return ok({ items: updated.items, totalMinor: total(updated.items) }, 201);
-}
-
-/** PATCH /api/cart — set an exact quantity. Zero removes the line. */
-export async function PATCH(request: Request) {
-  const session = await getSession();
-  if (!session) return fail("Sign in to change your bag.", 401);
-
-  const { productId, quantity } = (await request.json().catch(() => ({}))) as {
-    productId?: string;
-    quantity?: number;
-  };
-  if (!productId || typeof quantity !== "number") {
-    return fail("productId and quantity are required.");
-  }
-
-  const cart = await cartFor(session.userId);
-  if (quantity <= 0) {
-    await prisma.cartItem.deleteMany({ where: { cartId: cart.id, productId } });
-  } else {
-    await prisma.cartItem.updateMany({
-      where: { cartId: cart.id, productId },
-      data: { quantity: Math.min(quantity, 20) },
-    });
-  }
-
-  const updated = await cartFor(session.userId);
-  return ok({ items: updated.items, totalMinor: total(updated.items) });
-}
-
-/** DELETE /api/cart?productId=… — omit productId to empty the bag. */
-export async function DELETE(request: Request) {
-  const session = await getSession();
-  if (!session) return fail("Sign in to change your bag.", 401);
-
-  const productId = new URL(request.url).searchParams.get("productId");
-  const cart = await cartFor(session.userId);
-
-  await prisma.cartItem.deleteMany({
-    where: { cartId: cart.id, ...(productId ? { productId } : {}) },
-  });
-
-  const updated = await cartFor(session.userId);
-  return ok({ items: updated.items, totalMinor: total(updated.items) });
-}
+export const DELETE = route(async () => {
+  const key = await getOrCreateOwnerKey();
+  await clearCart(key);
+  return ok(serialiseCart(await getCart(key)));
+});

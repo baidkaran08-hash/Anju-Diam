@@ -1,72 +1,91 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 
 /**
- * Gold dot plus a ring that lags behind it. The lag is the effect — the ring
- * catches up on a LERP, so movement reads as weight rather than a second
- * pointer. Suppressed on touch and for reduced-motion.
+ * Pointer companion: a small filled dot that tracks exactly, and a ring that
+ * trails it and swells over anything interactive.
+ *
+ * Only mounts for devices with a real hover-capable pointer, so touch users
+ * pay nothing for it. Position is written straight to the DOM inside rAF
+ * rather than through state, because re-rendering React on mousemove is the
+ * fastest way to make a site feel cheap.
  */
 export default function Cursor() {
+  const dotRef = useRef<HTMLDivElement>(null);
+  const ringRef = useRef<HTMLDivElement>(null);
+
   useEffect(() => {
-    if (window.matchMedia("(hover: none), (pointer: coarse), (prefers-reduced-motion: reduce)").matches) {
-      return;
-    }
+    const fine = window.matchMedia("(hover: hover) and (pointer: fine)");
+    if (!fine.matches) return;
 
-    const dot = document.createElement("div");
-    const ring = document.createElement("div");
-    dot.className = "cur-dot";
-    ring.className = "cur-ring";
-    dot.setAttribute("aria-hidden", "true");
-    ring.setAttribute("aria-hidden", "true");
-    document.body.append(ring, dot);
+    const dot = dotRef.current;
+    const ring = ringRef.current;
+    if (!dot || !ring) return;
 
-    let mx = window.innerWidth / 2;
-    let my = window.innerHeight / 2;
-    let rx = mx;
-    let ry = my;
-    let rafId = 0;
+    let mouseX = window.innerWidth / 2;
+    let mouseY = window.innerHeight / 2;
+    let ringX = mouseX;
+    let ringY = mouseY;
+    let scale = 1;
+    let targetScale = 1;
+    let visible = false;
+    let raf = 0;
 
-    const onMove = (event: MouseEvent) => {
-      mx = event.clientX;
-      my = event.clientY;
-      dot.style.transform = `translate(${mx}px, ${my}px)`;
-      document.body.classList.add("cursor-on");
-    };
-    const onLeave = () => document.body.classList.remove("cursor-on");
+    const onMove = (event: PointerEvent) => {
+      mouseX = event.clientX;
+      mouseY = event.clientY;
 
-    const HOT = "a, button, input, select, textarea";
-    const onOver = (event: MouseEvent) => {
-      if ((event.target as Element)?.closest?.(HOT)) document.body.classList.add("cursor-hot");
-    };
-    const onOut = (event: MouseEvent) => {
-      if ((event.target as Element)?.closest?.(HOT)) document.body.classList.remove("cursor-hot");
+      if (!visible) {
+        visible = true;
+        dot.style.opacity = "1";
+        ring.style.opacity = "1";
+      }
+
+      const interactive = (event.target as Element | null)?.closest(
+        "a, button, input, textarea, select, summary, [role='button'], [data-cursor='grow']",
+      );
+      targetScale = interactive ? 2.1 : 1;
     };
 
-    const loop = () => {
-      rx += (mx - rx) * 0.16;
-      ry += (my - ry) * 0.16;
-      ring.style.transform = `translate(${rx}px, ${ry}px)`;
-      rafId = requestAnimationFrame(loop);
+    const onLeave = () => {
+      visible = false;
+      dot.style.opacity = "0";
+      ring.style.opacity = "0";
     };
-    loop();
 
-    window.addEventListener("mousemove", onMove, { passive: true });
-    window.addEventListener("mouseleave", onLeave);
-    window.addEventListener("mouseover", onOver);
-    window.addEventListener("mouseout", onOut);
+    const tick = () => {
+      ringX += (mouseX - ringX) * 0.16;
+      ringY += (mouseY - ringY) * 0.16;
+      scale += (targetScale - scale) * 0.14;
+
+      dot.style.transform = `translate3d(${mouseX}px, ${mouseY}px, 0) translate(-50%, -50%)`;
+      ring.style.transform = `translate3d(${ringX}px, ${ringY}px, 0) translate(-50%, -50%) scale(${scale.toFixed(3)})`;
+
+      raf = requestAnimationFrame(tick);
+    };
+
+    window.addEventListener("pointermove", onMove, { passive: true });
+    document.addEventListener("pointerleave", onLeave);
+    raf = requestAnimationFrame(tick);
 
     return () => {
-      cancelAnimationFrame(rafId);
-      window.removeEventListener("mousemove", onMove);
-      window.removeEventListener("mouseleave", onLeave);
-      window.removeEventListener("mouseover", onOver);
-      window.removeEventListener("mouseout", onOut);
-      dot.remove();
-      ring.remove();
-      document.body.classList.remove("cursor-on", "cursor-hot");
+      cancelAnimationFrame(raf);
+      window.removeEventListener("pointermove", onMove);
+      document.removeEventListener("pointerleave", onLeave);
     };
   }, []);
 
-  return null;
+  return (
+    <div aria-hidden className="pointer-events-none fixed inset-0 z-[150] hidden md:block">
+      <div
+        ref={dotRef}
+        className="absolute left-0 top-0 h-1 w-1 rounded-full bg-gold opacity-0 transition-opacity duration-500"
+      />
+      <div
+        ref={ringRef}
+        className="absolute left-0 top-0 h-9 w-9 rounded-full border border-gold/45 opacity-0 transition-opacity duration-500"
+      />
+    </div>
+  );
 }

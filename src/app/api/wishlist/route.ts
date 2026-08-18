@@ -1,49 +1,29 @@
-import { prisma } from "@/lib/prisma";
-import { ok, fail } from "@/lib/api";
-import { getSession } from "@/lib/auth";
+import { ok, readJson, route } from "@/lib/api";
+import { getSessionUser } from "@/lib/auth";
+import { getOrCreateOwnerKey } from "@/lib/owner";
+import { getWishlist, getWishlistIds, toggleWishlist } from "@/lib/wishlist";
+import { wishlistSchema } from "@/lib/validation";
 
-async function requireSession() {
-  const session = await getSession();
-  return session ?? null;
-}
-
-/** GET /api/wishlist */
-export async function GET() {
-  const session = await requireSession();
-  if (!session) return fail("Sign in to see your wishlist.", 401);
-
-  const items = await prisma.wishlistItem.findMany({
-    where: { userId: session.userId },
-    include: { product: true },
-    orderBy: { createdAt: "desc" },
+export const GET = route(async () => {
+  const key = await getOrCreateOwnerKey();
+  const items = await getWishlist(key);
+  return ok({
+    ids: items.map((item) => item.productId),
+    items: items.map((item) => ({
+      productId: item.productId,
+      slug: item.product.slug,
+      name: item.product.name,
+      priceMinor: item.product.priceMinor,
+      currency: item.product.currency,
+    })),
   });
-  return ok({ items });
-}
+});
 
-/** POST /api/wishlist — idempotent, so double-tapping the heart is harmless. */
-export async function POST(request: Request) {
-  const session = await requireSession();
-  if (!session) return fail("Sign in to save pieces.", 401);
+export const POST = route(async (request: Request) => {
+  const input = wishlistSchema.parse(await readJson(request));
+  const key = await getOrCreateOwnerKey();
+  const user = await getSessionUser();
 
-  const { productId } = (await request.json().catch(() => ({}))) as { productId?: string };
-  if (!productId) return fail("productId is required.");
-
-  const item = await prisma.wishlistItem.upsert({
-    where: { userId_productId: { userId: session.userId, productId } },
-    update: {},
-    create: { userId: session.userId, productId },
-  });
-  return ok({ item }, 201);
-}
-
-/** DELETE /api/wishlist?productId=… */
-export async function DELETE(request: Request) {
-  const session = await requireSession();
-  if (!session) return fail("Sign in to change your wishlist.", 401);
-
-  const productId = new URL(request.url).searchParams.get("productId");
-  if (!productId) return fail("productId is required.");
-
-  await prisma.wishlistItem.deleteMany({ where: { userId: session.userId, productId } });
-  return ok({ message: "Removed." });
-}
+  const result = await toggleWishlist(key, input.productId, user?.id);
+  return ok({ ...result, ids: await getWishlistIds(key) });
+});

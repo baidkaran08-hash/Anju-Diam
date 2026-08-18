@@ -1,49 +1,80 @@
-import { notFound } from "next/navigation";
 import type { Metadata } from "next";
-import CollectionBrowser from "@/components/CollectionBrowser";
-import { CATEGORIES, bySlug } from "@/lib/catalogue";
+import { notFound } from "next/navigation";
+import { Suspense } from "react";
+
+import PageHero from "@/components/PageHero";
+import CatalogueBrowser from "@/components/CatalogueBrowser";
+import { listProducts, priceBounds } from "@/lib/catalogue";
+import type { ProductQuery } from "@/lib/catalogue";
+import { categories, categoryBySlug } from "@/lib/site";
 
 export function generateStaticParams() {
-  return CATEGORIES.map((category) => ({ category: category.slug }));
+  return categories.map((category) => ({ category: category.slug }));
 }
 
-export async function generateMetadata(
-  { params }: { params: Promise<{ category: string }> },
-): Promise<Metadata> {
-  const category = bySlug((await params).category);
-  if (!category) return { title: "Collection" };
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ category: string }>;
+}): Promise<Metadata> {
+  const { category: slug } = await params;
+  const category = categoryBySlug.get(slug as never);
+
+  // Raised here, not just in the page body — see the note in
+  // products/[slug]/page.tsx. Otherwise this 404 is served as a 200.
+  if (!category) notFound();
+
   return {
     title: category.name,
-    description: `${category.name} by Anju Diam — ${category.tag}. Handcrafted in 18-karat gold, set with diamonds of G colour or higher and VS clarity or above.`,
+    description: category.blurb,
   };
 }
 
 export default async function CategoryPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ category: string }>;
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
-  const category = bySlug((await params).category);
+  const { category: slug } = await params;
+  const category = categoryBySlug.get(slug as never);
   if (!category) notFound();
 
-  return (
-    <main className="bg-ivory text-charcoal">
-      <div className="mx-auto max-w-[1360px] px-6 pb-24 pt-40 md:px-12 md:py-36 md:pt-48">
-        <div className="mb-12 flex flex-wrap items-end justify-between gap-10">
-          <div>
-            <span className="label text-wine">Collections</span>
-            <h1 className="mt-4 max-w-[20ch] font-display text-[clamp(30px,4.6vw,62px)] leading-[1.06] tracking-tight text-plum">
-              {category.name}
-            </h1>
-          </div>
-          <p className="max-w-[40ch] text-sm leading-[1.78] text-charcoal/70">
-            {category.tag}. Handcrafted in 18-karat gold, set with diamonds of G colour or higher and
-            VS clarity or above.
-          </p>
-        </div>
+  const raw = await searchParams;
+  const query: Partial<ProductQuery> = Object.fromEntries(
+    Object.entries(raw).filter(([, value]) => typeof value === "string" && value !== ""),
+  ) as Partial<ProductQuery>;
 
-        <CollectionBrowser category={category.key} fallbackImage={`/collections/${category.slug}.webp`} />
-      </div>
-    </main>
+  const [initial, bounds] = await Promise.all([
+    listProducts({ ...query, category: category.enumValue, perPage: 24 }),
+    priceBounds(category.enumValue),
+  ]);
+
+  return (
+    <>
+      <PageHero
+        eyebrow={`${initial.total} pieces`}
+        title={category.name}
+        body={category.blurb}
+        frame={category.frame}
+        breadcrumb={[
+          { href: "/", label: "Home" },
+          { href: "/collections", label: "Collections" },
+        ]}
+      />
+
+      <section className="bg-ivory py-16 md:py-24">
+        <div className="shell">
+          <Suspense fallback={<div className="h-96 shimmering" />}>
+            <CatalogueBrowser
+              category={category.enumValue}
+              bounds={bounds}
+              initial={initial}
+            />
+          </Suspense>
+        </div>
+      </section>
+    </>
   );
 }
