@@ -24,7 +24,7 @@ export default async function AccountPage() {
     : [];
 
   return (
-    <section className="bg-ivory pb-28 pt-36 md:pb-40 md:pt-44">
+    <section className="bg-champagne pb-28 pt-36 md:pb-40 md:pt-44">
       <div className="shell">
         <p className="label mb-5 text-wine">Account</p>
         <h1 className="display-lg mb-14 text-plum">

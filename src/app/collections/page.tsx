@@ -37,7 +37,7 @@ export default async function CollectionsPage({
         breadcrumb={[{ href: "/", label: "Home" }]}
       />
 
-      <section className="bg-ivory py-16 md:py-24">
+      <section className="bg-champagne py-16 md:py-24">
         <div className="shell">
           <Suspense fallback={<div className="h-96 shimmering" />}>
             <CatalogueBrowser bounds={bounds} initial={initial} />

@@ -9,7 +9,7 @@ export const metadata: Metadata = {
 
 export default function CheckoutPage() {
   return (
-    <section className="bg-ivory pb-28 pt-36 md:pb-40 md:pt-44">
+    <section className="bg-champagne pb-28 pt-36 md:pb-40 md:pt-44">
       <div className="shell">
         <p className="label mb-5 text-wine">Almost There</p>
         <h1 className="display-lg text-plum">Where should we send it?</h1>

@@ -16,7 +16,7 @@ import { LotusMark } from "@/components/Logo";
 export default function SearchLoading() {
   return (
     <div
-      className="grid min-h-[70svh] place-content-center bg-ivory"
+      className="grid min-h-[70svh] place-content-center bg-champagne"
       role="status"
       aria-live="polite"
     >

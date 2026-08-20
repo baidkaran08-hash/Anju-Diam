@@ -160,7 +160,7 @@ export default function ImageManager({
               </div>
 
               <div className="min-w-0 flex-1">
-                {index === 0 && <span className="label-sm text-gold">Lead image</span>}
+                {index === 0 && <span className="label-sm text-gold-deep">Lead image</span>}
                 <input
                   value={image.alt}
                   onChange={(event) => setAlt(index, event.target.value)}

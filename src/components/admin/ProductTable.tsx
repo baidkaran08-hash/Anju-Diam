@@ -139,7 +139,7 @@ export default function ProductTable({
             <li key={row.id}>
               <Link
                 href={`/admin/products/${row.id}`}
-                className="flex items-center gap-5 p-4 transition-colors hover:bg-stone/30"
+                className="flex items-center gap-5 p-4 transition-colors hover:bg-sand/50"
               >
                 <div className="relative h-16 w-14 shrink-0 overflow-hidden bg-plum">
                   {row.images[0] ? (

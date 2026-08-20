@@ -155,7 +155,7 @@ export default function AccountPanel({
           </form>
         </div>
 
-        <aside className="border border-graphite/15 bg-stone/25 p-9 md:p-12">
+        <aside className="border border-graphite/15 bg-ivory p-9 md:p-12">
           <h2 className="display-sm text-plum">Why hold an account?</h2>
           <ul className="mt-8 space-y-5 text-sm font-light leading-relaxed text-graphite/70">
             <li>Your saved pieces and selection follow you between devices.</li>

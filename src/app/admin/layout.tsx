@@ -18,7 +18,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
 
   if (!user || user.role !== "ADMIN") {
     return (
-      <section className="bg-ivory pb-28 pt-36 md:pb-40 md:pt-44">
+      <section className="bg-champagne pb-28 pt-36 md:pb-40 md:pt-44">
         <div className="shell-narrow">
           <p className="label mb-5 text-wine">Studio</p>
           <h1 className="display-lg text-plum">Administrators only.</h1>
@@ -36,7 +36,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
   }
 
   return (
-    <div className="min-h-screen bg-stone/25 pb-28 pt-28 md:pt-32">
+    <div className="min-h-screen bg-champagne pb-28 pt-28 md:pt-32">
       <div className="shell">
         <AdminNav name={user.name} />
         {children}

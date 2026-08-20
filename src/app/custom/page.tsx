@@ -71,7 +71,7 @@ export default function CustomPage() {
       />
 
       {/* ── Process ───────────────────────────────────────────────────────── */}
-      <section className="bg-ivory py-28 md:py-40">
+      <section className="bg-champagne py-28 md:py-40">
         <div className="shell">
           <SectionHeading
             eyebrow="The Process"
@@ -82,7 +82,7 @@ export default function CustomPage() {
           <ol className="mt-20 grid gap-px bg-graphite/10 md:grid-cols-2 lg:grid-cols-5">
             {STEPS.map((item, index) => (
               <Reveal key={item.step} delay={index * 90} as="li" className="bg-ivory p-8 md:p-9">
-                <p className="label text-gold">{item.step}</p>
+                <p className="label text-gold-deep">{item.step}</p>
                 <h3 className="display-sm mt-6 text-plum">{item.title}</h3>
                 <p className="mt-4 text-sm font-light leading-relaxed text-graphite/65">{item.body}</p>
               </Reveal>
@@ -105,7 +105,7 @@ export default function CustomPage() {
       </section>
 
       {/* ── Enquiry ───────────────────────────────────────────────────────── */}
-      <section className="bg-ivory py-28 md:py-40">
+      <section className="bg-champagne py-28 md:py-40">
         <div className="shell grid gap-16 lg:grid-cols-[0.8fr_1.2fr]">
           <div>
             <SectionHeading
@@ -121,7 +121,7 @@ export default function CustomPage() {
       </section>
 
       {/* ── Questions ─────────────────────────────────────────────────────── */}
-      <section className="bg-stone/40 py-24 md:py-32">
+      <section className="bg-sand/50 py-24 md:py-32">
         <div className="shell-narrow">
           <SectionHeading eyebrow="Questions" title="Asked often." />
 

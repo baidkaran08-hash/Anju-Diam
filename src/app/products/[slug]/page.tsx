@@ -83,7 +83,7 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
 
   return (
     <>
-      <article className="bg-ivory pt-28 md:pt-36">
+      <article className="bg-champagne pt-28 md:pt-36">
         <div className="shell">
           <nav aria-label="Breadcrumb" className="mb-10">
             <ol className="label-sm flex flex-wrap items-center gap-2.5 text-graphite/40">
@@ -156,7 +156,7 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
             {/* ── Detail ────────────────────────────────────────────────── */}
             <div className="pb-20">
               {product.illusionSet && (
-                <p className="label mb-5 text-gold">The house speciality · Illusion set</p>
+                <p className="label mb-5 text-gold-deep">The house speciality · Illusion set</p>
               )}
 
               <h1 className="display-lg text-plum">{product.name}</h1>
@@ -221,7 +221,7 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
 
       {/* ── Related ─────────────────────────────────────────────────────── */}
       {related.length > 0 && (
-        <section className="bg-stone/40 py-24 md:py-32">
+        <section className="bg-sand/50 py-24 md:py-32">
           <div className="shell">
             <div className="mb-14 flex items-end justify-between gap-6">
               <h2 className="display-md text-plum">In the same neighbourhood</h2>
@@ -247,7 +247,7 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
       )}
 
       {/* ── Enquire about this piece ────────────────────────────────────── */}
-      <section className="bg-ivory py-24 md:py-32">
+      <section className="bg-champagne py-24 md:py-32">
         <div className="shell grid gap-14 lg:grid-cols-[0.8fr_1.2fr]">
           <div>
             <p className="label mb-5 text-wine">Enquire</p>

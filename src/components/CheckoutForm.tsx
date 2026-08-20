@@ -63,7 +63,7 @@ export default function CheckoutForm() {
 
   if (state === "done") {
     return (
-      <div className="border border-gold/30 bg-stone/25 px-8 py-20 text-center md:px-16">
+      <div className="border border-gold/30 bg-ivory px-8 py-20 text-center md:px-16">
         <DiamondRule className="mx-auto h-3 w-40 text-gold" />
         <h2 className="display-lg mt-10 text-plum">Thank you.</h2>
         <p className="measure mx-auto mt-6 body-lg text-graphite/70">

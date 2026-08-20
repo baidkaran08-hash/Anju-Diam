@@ -571,7 +571,10 @@ export type ArtTone = "plum" | "ivory" | "ink";
 
 const TONES: Record<ArtTone, { bg: string; glow: string }> = {
   plum: { bg: "#4F243C", glow: "#6B3A56" },
-  ivory: { bg: "#F2EDE6", glow: "#FFFFFF" },
+  // Deliberately a shade LIGHTER than the champagne page ground
+  // (#F2E9DB). Matching it exactly made light-toned cards dissolve into the
+  // background instead of reading as tiles.
+  ivory: { bg: "#FAF4E9", glow: "#FFFFFF" },
   ink: { bg: "#140A10", glow: "#3A1E30" },
 };
 

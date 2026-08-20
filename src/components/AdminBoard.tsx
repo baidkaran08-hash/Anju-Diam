@@ -87,7 +87,7 @@ export default function AdminBoard({
   return (
     <div>
       {!mailConfigured && (
-        <p className="mb-10 border-l-2 border-gold bg-stone/40 px-5 py-4 text-sm font-light text-graphite/75">
+        <p className="mb-10 border-l-2 border-gold bg-ivory px-5 py-4 text-sm font-light text-graphite/75">
           <strong className="font-medium">Email alerts are off.</strong> SMTP is not configured, so
           enquiries are being stored here but no notification is leaving the server. Set{" "}
           <code className="text-xs">SMTP_HOST</code>, <code className="text-xs">SMTP_USER</code> and{" "}
@@ -132,7 +132,7 @@ export default function AdminBoard({
                   >
                     <div className="flex flex-wrap items-baseline gap-3">
                       <span className="display-sm text-plum">{row.name}</span>
-                      <span className="label-sm text-gold">
+                      <span className="label-sm text-gold-deep">
                         {enquiryKindLabel[row.kind as EnquiryKind] ?? row.kind}
                       </span>
                       {!row.notified && (

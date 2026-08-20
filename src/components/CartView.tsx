@@ -14,7 +14,7 @@ export default function CartView() {
     return (
       <div className="space-y-4" aria-busy>
         {[0, 1].map((i) => (
-          <div key={i} className="h-32 bg-stone/40 shimmering" />
+          <div key={i} className="h-32 bg-sand/60 shimmering" />
         ))}
       </div>
     );

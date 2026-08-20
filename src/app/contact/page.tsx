@@ -33,7 +33,7 @@ export default function ContactPage() {
         breadcrumb={[{ href: "/", label: "Home" }]}
       />
 
-      <section className="bg-ivory py-24 md:py-32">
+      <section className="bg-champagne py-24 md:py-32">
         <div className="shell grid gap-12 lg:grid-cols-[1.05fr_0.95fr] lg:gap-20">
           {/* ── The card ────────────────────────────────────────────────── */}
           <Reveal>

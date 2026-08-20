@@ -32,7 +32,7 @@ export default function EnquirePage() {
         breadcrumb={[{ href: "/", label: "Home" }]}
       />
 
-      <section className="bg-ivory py-24 md:py-32">
+      <section className="bg-champagne py-24 md:py-32">
         <div className="shell grid gap-16 lg:grid-cols-[0.8fr_1.2fr]">
           <div>
             <Reveal>

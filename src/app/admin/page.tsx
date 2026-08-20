@@ -94,7 +94,7 @@ export default async function StudioOverview() {
                       {enquiryKindLabel[row.kind as EnquiryKind] ?? row.kind}
                     </p>
                   </div>
-                  <span className="label-sm shrink-0 text-gold">{row.status.replace("_", " ")}</span>
+                  <span className="label-sm shrink-0 text-gold-deep">{row.status.replace("_", " ")}</span>
                 </li>
               ))}
             </ul>
@@ -134,7 +134,7 @@ export default async function StudioOverview() {
 
 function Stat({ label, value, href }: { label: string; value: string; href: string }) {
   return (
-    <Link href={href} className="bg-ivory p-7 transition-colors hover:bg-stone/40">
+    <Link href={href} className="bg-ivory p-7 transition-colors hover:bg-sand/50">
       <p className="display-md text-plum">{value}</p>
       <p className="label-sm mt-3 text-graphite/45">{label}</p>
     </Link>

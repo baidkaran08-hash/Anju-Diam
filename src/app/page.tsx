@@ -32,7 +32,7 @@ export default async function HomePage() {
       <HomeHero frameCount={manifest.frameCount} poster={manifest.poster} />
 
       {/* ── Statement ─────────────────────────────────────────────────────── */}
-      <section className="bg-ivory py-28 md:py-40">
+      <section className="bg-champagne py-28 md:py-40">
         <div className="shell-narrow text-center">
           <Reveal>
             <DiamondRule className="mx-auto h-3 w-36 text-gold" />
@@ -60,7 +60,7 @@ export default async function HomePage() {
       </section>
 
       {/* ── Collections ───────────────────────────────────────────────────── */}
-      <section className="bg-ivory pb-28 md:pb-40">
+      <section className="bg-champagne pb-28 md:pb-40">
         <div className="shell">
           <SectionHeading
             eyebrow="The Collections"
@@ -131,7 +131,7 @@ export default async function HomePage() {
       </section>
 
       {/* ── Featured pieces ───────────────────────────────────────────────── */}
-      <section className="bg-ivory py-28 md:py-40">
+      <section className="bg-champagne py-28 md:py-40">
         <div className="shell">
           <SectionHeading
             eyebrow="One From Each House"
@@ -151,7 +151,7 @@ export default async function HomePage() {
       </section>
 
       {/* ── Illusion setting ──────────────────────────────────────────────── */}
-      <section id="illusion" className="bg-stone/45 py-28 md:py-40">
+      <section id="illusion" className="bg-sand/55 py-28 md:py-40">
         <div className="shell grid items-center gap-16 lg:grid-cols-2">
           <div>
             <SectionHeading
@@ -221,7 +221,7 @@ export default async function HomePage() {
       <Hallmarks />
 
       {/* ── Enquiry ───────────────────────────────────────────────────────── */}
-      <section className="bg-ivory py-28 md:py-40">
+      <section className="bg-champagne py-28 md:py-40">
         <div className="shell grid gap-16 lg:grid-cols-[0.85fr_1.15fr]">
           <div>
             <SectionHeading

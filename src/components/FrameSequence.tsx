@@ -415,7 +415,7 @@ export default function FrameSequence({
 
         {!ready && (
           <div
-            className="absolute inset-0 z-50 grid place-content-center justify-items-center gap-8 bg-ivory"
+            className="absolute inset-0 z-50 grid place-content-center justify-items-center gap-8 bg-champagne"
             role="status"
             aria-live="polite"
           >

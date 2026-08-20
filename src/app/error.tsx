@@ -27,7 +27,7 @@ export default function RouteError({
   }, [error]);
 
   return (
-    <section className="grid min-h-[70svh] place-content-center bg-ivory px-6 py-32 text-center">
+    <section className="grid min-h-[70svh] place-content-center bg-champagne px-6 py-32 text-center">
       <DiamondRule className="mx-auto h-3 w-36 text-gold" />
       <h1 className="display-lg mt-10 text-plum">Something went wrong at our end.</h1>
       <p className="measure mx-auto mt-6 body-lg text-graphite/70">

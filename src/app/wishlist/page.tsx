@@ -15,7 +15,7 @@ export default async function WishlistPage() {
   const saved = key ? await getWishlist(key) : [];
 
   return (
-    <section className="bg-ivory pb-28 pt-36 md:pb-40 md:pt-44">
+    <section className="bg-champagne pb-28 pt-36 md:pb-40 md:pt-44">
       <div className="shell">
         <p className="label mb-5 text-wine">Saved</p>
         <h1 className="display-lg text-plum">

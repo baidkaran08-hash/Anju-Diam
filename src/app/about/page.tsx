@@ -66,7 +66,7 @@ export default function AboutPage() {
       />
 
       {/* ── Our story ─────────────────────────────────────────────────────── */}
-      <section className="bg-ivory py-28 md:py-40">
+      <section className="bg-champagne py-28 md:py-40">
         <div className="shell grid gap-16 lg:grid-cols-[0.65fr_1.35fr]">
           <div className="lg:sticky lg:top-32 lg:self-start">
             <Reveal>
@@ -112,7 +112,7 @@ export default function AboutPage() {
       </section>
 
       {/* ── Craftsmanship ─────────────────────────────────────────────────── */}
-      <section id="craft" className="bg-ivory py-28 md:py-40">
+      <section id="craft" className="bg-champagne py-28 md:py-40">
         <div className="shell grid items-center gap-16 lg:grid-cols-2">
           <div>
             <SectionHeading
@@ -127,7 +127,7 @@ export default function AboutPage() {
           </div>
 
           <Reveal delay={160}>
-            <div className="border border-gold/25 bg-stone/30 p-10 md:p-14">
+            <div className="border border-gold/25 bg-ivory p-10 md:p-14">
               <IllusionDiagram className="h-auto w-full" />
               <p className="mt-8 text-xs font-light leading-relaxed text-graphite/50">
                 An illusion setting places small natural diamonds into a mirror-finished plate cut to their
@@ -166,7 +166,7 @@ export default function AboutPage() {
       </section>
 
       {/* ── Closing ───────────────────────────────────────────────────────── */}
-      <section className="bg-ivory py-28 text-center md:py-40">
+      <section className="bg-champagne py-28 text-center md:py-40">
         <div className="shell-narrow">
           <Reveal>
             <DiamondRule className="mx-auto h-3 w-40 text-gold" />
