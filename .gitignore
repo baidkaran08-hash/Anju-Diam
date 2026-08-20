@@ -14,3 +14,7 @@ next-env.d.ts
 
 # Database snapshots from `npm run db:backup`.
 prisma/backups
+
+# Original client-supplied source material (brand sheet, frame archive).
+# Kept alongside the project for reference, deliberately out of the repo.
+_client-materials
