@@ -4,27 +4,28 @@
 // wishlist, cart, customer accounts, enquiry-based orders, and lead capture.
 //
 // PORTABILITY NOTE
-// The datasource below is SQLite so the site runs the moment it is cloned, with
-// no database to provision. Everything here is deliberately written to survive
-// a switch to Postgres unchanged:
+// Postgres, because the site is deployed to Vercel, whose filesystem resets on
+// every deploy — a SQLite file there would lose every order and enquiry. The
+// models below were written portable from the start, so the switch needed no
+// model edits at all:
 //
-//   * no native enums      — Prisma enums are unsupported on SQLite, so the
-//                            union types live in src/lib/enums.ts and are
-//                            enforced by Zod at every write path
+//   * no native enums      — the union types live in src/lib/enums.ts and are
+//                            enforced by Zod at every write path, which also
+//                            keeps SQLite viable for local work
 //   * no scalar lists      — images are a related ProductImage table, which is
 //                            better modelling anyway (ordering, alt text)
 //   * no @db.* attributes  — Prisma already maps String to TEXT on Postgres
 //
-// To move to Postgres: change provider to "postgresql", point DATABASE_URL at
-// the new instance, and run `npm run db:push && npm run db:seed`. No model
-// edits required.
+// Local development points DATABASE_URL at the same Postgres (a free Neon
+// branch is fine). To go back to SQLite, set provider to "sqlite" and point
+// DATABASE_URL at a file: URL — no model edits either way.
 
 generator client {
   provider = "prisma-client-js"
 }
 
 datasource db {
-  provider = "sqlite"
+  provider = "postgresql"
   url      = env("DATABASE_URL")
 }
 

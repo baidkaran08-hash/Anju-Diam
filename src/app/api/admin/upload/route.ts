@@ -1,5 +1,3 @@
-import { mkdir, writeFile } from "node:fs/promises";
-import path from "node:path";
 import { randomUUID } from "node:crypto";
 
 import sharp from "sharp";
@@ -7,19 +5,18 @@ import sharp from "sharp";
 import { requireAdmin } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { fail, ok, route } from "@/lib/api";
-import { MEDIA_DIR, MEDIA_URL_PREFIX } from "@/lib/media";
+import { storeImage, usingBlob } from "@/lib/storage";
 
 /**
  * Product photography upload.
  *
- * Writes to MEDIA_DIR (./media by default), NOT public/. Next builds a static
- * manifest of public/ at build time, so a file written there after the build
- * works in development and 404s in production — the upload would have looked
- * fine right up until launch. Files are served back by /api/media.
+ * Storage backend is chosen in src/lib/storage.ts: Vercel Blob when
+ * BLOB_READ_WRITE_TOKEN is set, otherwise MEDIA_DIR on a real disk. Never
+ * public/ — Next builds a static manifest of that directory at build time, so
+ * a file written there afterwards works in development and 404s in production.
  *
- * On an ephemeral filesystem this directory does not survive a deploy. Point
- * MEDIA_DIR at a mounted volume, or swap the two writeFile calls below for an
- * S3 / R2 / Blob put — the database only ever stores the returned URL.
+ * The database only ever stores the returned URL, so nothing downstream knows
+ * or cares which backend ran.
  */
 
 const MAX_BYTES = 12 * 1024 * 1024;
@@ -67,9 +64,6 @@ export const POST = route(async (request: Request) => {
     return fail("Upload a JPEG, PNG, WebP, AVIF or TIFF.", 415);
   }
 
-  const dir = path.join(MEDIA_DIR, "products", product.slug);
-  await mkdir(dir, { recursive: true });
-
   const id = randomUUID().slice(0, 8);
   const base = `${Date.now().toString(36)}-${id}`;
 
@@ -87,12 +81,10 @@ export const POST = route(async (request: Request) => {
     .webp({ quality: 82, effort: 5 })
     .toBuffer();
 
-  await Promise.all([
-    writeFile(path.join(dir, `${base}.webp`), full),
-    writeFile(path.join(dir, `${base}-thumb.webp`), thumb),
+  const [url] = await Promise.all([
+    storeImage(product.slug, `${base}.webp`, full),
+    storeImage(product.slug, `${base}-thumb.webp`, thumb),
   ]);
-
-  const url = `${MEDIA_URL_PREFIX}/products/${product.slug}/${base}.webp`;
 
   const image = await prisma.productImage.create({
     data: {
@@ -109,7 +101,12 @@ export const POST = route(async (request: Request) => {
     {
       image,
       source: { width: meta.width, height: meta.height, bytes: file.size },
-      stored: { width: output.width, height: output.height, bytes: full.length },
+      stored: {
+        width: output.width,
+        height: output.height,
+        bytes: full.length,
+        backend: usingBlob() ? "vercel-blob" : "disk",
+      },
     },
     { status: 201 },
   );

@@ -6,7 +6,12 @@ const config: NextConfig = {
   // Next infers the home folder as the workspace root and traces the wrong tree.
   outputFileTracingRoot: path.join(__dirname),
 
-  images: { formats: ["image/webp"] },
+  images: {
+    formats: ["image/webp"],
+    // Uploaded photography is served from Vercel Blob in that deployment.
+    // Without this next/image rejects the host and every photo 400s.
+    remotePatterns: [{ protocol: "https", hostname: "*.public.blob.vercel-storage.com" }],
+  },
 
   async headers() {
     return [
