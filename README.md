@@ -555,60 +555,70 @@ It is ~69 MB, almost all of it the 900 hero frames. That is well inside GitHub's
 limits and needs no Git LFS, but a fresh clone is not instant — worth knowing
 before anyone assumes it has hung.
 
-### 2. Deploy
+### 2. Create the database
 
-**Render, on a paid instance with a persistent disk.** `render.yaml` in the
-repository root configures the whole service — connect the repo as a Blueprint
-and it reads that file.
+Vercel has no disk, so the database lives elsewhere. Neon is free and takes a
+minute.
 
-The disk is the point. The database and the uploaded product photography both
-live on it, so the site runs in production exactly as it runs on your laptop:
-no migration to a managed database, no move to object storage, nothing to get
-wrong before launch. On a serverless host both would reset on every deploy.
+1. neon.tech, sign up, create a project.
+2. Copy the connection string. It looks like
+   `postgresql://user:pass@ep-xxx.aws.neon.tech/neondb?sslmode=require`.
+3. Keep it — it goes into Vercel in the next step, and into your local `.env`
+   if you want to run the site on your laptop.
 
-1. Push to GitHub (step 1 above).
-2. Render → **New → Blueprint** → pick the repository. It reads `render.yaml`.
-3. Fill in the three values it asks for:
-   - `NEXT_PUBLIC_SITE_URL` → `https://www.anjudiam.com`
-   - `SEED_ADMIN_EMAIL` → your studio login
-   - `SEED_ADMIN_PASSWORD` → a real password, not the seeded default
-4. Deploy. First boot creates the database on the disk and seeds the placeholder
-   catalogue; later boots leave it alone.
+### 3. Deploy to Vercel
 
-`npm run start:prod` runs `scripts/prepare-production.ts` before the server.
-That pushes the schema (a no-op when unchanged) and **seeds only when the
-database is empty** — without that guard, every deploy would resurrect the 250
-placeholder pieces over the real catalogue.
+1. vercel.com, sign in **with GitHub**, then **Add New → Project** and pick the
+   repository. Leave the framework and build settings alone; Vercel detects
+   Next.js and runs the `vercel-build` script.
+2. Before the first deploy, open **Environment Variables** and add:
 
-`/api/health` is the health check. It counts active products rather than just
-returning 200, so a process that is up but cannot read its own catalogue is
-correctly reported as unhealthy.
+   | Name | Value |
+   | --- | --- |
+   | `DATABASE_URL` | the Neon string from step 2 |
+   | `AUTH_SECRET` | run `openssl rand -base64 32` and paste the result |
+   | `NEXT_PUBLIC_SITE_URL` | `https://www.anjudiam.com` |
+   | `NEXT_PUBLIC_WHATSAPP` | `66831636736` |
+   | `SEED_ADMIN_EMAIL` | your studio login |
+   | `SEED_ADMIN_PASSWORD` | a real password |
 
-A service with a disk runs as one instance and takes a few seconds of downtime
-while a deploy swaps over. For this site that is the right trade.
+3. Deploy. The build pushes the schema to Neon and seeds the placeholder
+   catalogue, but **only because the database is empty** — later deploys leave
+   your real catalogue alone.
+4. **Storage → Blob → Create**, connect it to the project, then redeploy.
+   Vercel injects `BLOB_READ_WRITE_TOKEN`, which switches product photo
+   uploads from disk to Blob. Skip this and uploads vanish on the next deploy.
+5. Open `/api/health`. It should return `{"ok":true,"products":250}`. That
+   proves the app can read its own database.
 
-The same `start:prod` works unchanged on Railway or Fly with a volume, or on a
-plain VPS — set `DATABASE_URL` and `MEDIA_DIR` to paths on the persistent
-storage.
+### 4. Point your domain at it
 
-### 3. Point the domain at it
+1. Vercel project → **Settings → Domains** → add `anjudiam.com`, then
+   `www.anjudiam.com`.
+2. Vercel shows the exact records to create. At your registrar's DNS page:
 
-In Render: **Settings → Custom Domains** → add both `anjudiam.com` and
-`www.anjudiam.com`. Render shows the exact targets; at your registrar's DNS:
+   | Record | Name | Value |
+   | --- | --- | --- |
+   | `A` | `@` | the IP Vercel shows |
+   | `CNAME` | `www` | `cname.vercel-dns.com` |
 
-| Record | Name | Value |
-| --- | --- | --- |
-| `CNAME` | `www` | the `onrender.com` hostname Render gives you |
-| `ALIAS` / `ANAME` / `CNAME flattening` | `@` | the same hostname |
+   Use the values on Vercel's screen, not these — they change, and a guessed
+   record is a dead domain.
+3. Wait. DNS takes minutes to a few hours. SSL is issued automatically once the
+   records resolve; the warning before that is expected, not broken.
+4. Set one as canonical in Vercel and let the other redirect. Make
+   `NEXT_PUBLIC_SITE_URL` match whichever you chose.
 
-If your registrar only offers plain `A` records at the root — many do — use the
-IP address Render lists for the apex instead of an ALIAS. Do not invent one; it
-is shown on that screen.
+### Running it on your laptop after this
 
-DNS takes anywhere from minutes to a few hours. SSL is issued automatically once
-the records resolve; until then the domain will warn, which is expected rather
-than broken. Set `NEXT_PUBLIC_SITE_URL` to whichever of the two you treat as
-canonical, and let the other redirect.
+The database is no longer a local file, so `npm run dev` needs the Neon string:
+
+```
+DATABASE_URL="postgresql://…your neon string…"
+```
+
+Put that line in `.env`. Without it the site starts but every page errors on
+its first query.
 
 ### Backups
 
