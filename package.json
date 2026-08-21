@@ -17,7 +17,9 @@
     "logo:build": "tsx scripts/build-logo.ts",
     "start:prod": "tsx scripts/prepare-production.ts && next start -p ${PORT:-3000}",
     "db:backup": "tsx scripts/backup-db.ts",
-    "vercel-build": "prisma generate && tsx scripts/prepare-production.ts && next build"
+    "vercel-build": "tsx scripts/set-db-provider.ts postgresql && prisma generate && tsx scripts/prepare-production.ts && next build",
+    "db:local": "tsx scripts/set-db-provider.ts sqlite && prisma generate && prisma db push --skip-generate",
+    "db:cloud": "tsx scripts/set-db-provider.ts postgresql && prisma generate"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"
