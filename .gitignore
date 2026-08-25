@@ -7,7 +7,11 @@ node_modules
 raw-frames
 prisma/dev.db*
 *.tsbuildinfo
-media
+
+# Uploaded product photography, when MEDIA_DIR points here. Anchored to the
+# repo root: a bare "media" also matched src/app/api/media, which silently
+# kept the route that serves these files out of the repo entirely.
+/media/
 
 # Next.js ambient types, regenerated on every build.
 next-env.d.ts
