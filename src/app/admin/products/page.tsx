@@ -18,6 +18,7 @@ export default async function AdminProductsPage({
     q: str("q"),
     category: str("category"),
     status: str("status"),
+    attention: str("attention"),
     page: str("page") ? Number(str("page")) : 1,
     perPage: 25,
   });

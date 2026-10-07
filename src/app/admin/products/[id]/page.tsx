@@ -25,7 +25,19 @@ export default async function EditProductPage({ params }: { params: Promise<{ id
         </p>
       </div>
 
-      <ProductForm product={product} />
+      <ProductForm
+        product={{
+          ...product,
+          // Dates do not survive the server-to-client boundary as Dates, and
+          // the date input wants yyyy-mm-dd anyway.
+          certificates: product.certificates.map((certificate) => ({
+            ...certificate,
+            issuedOn: certificate.issuedOn
+              ? certificate.issuedOn.toISOString().slice(0, 10)
+              : null,
+          })),
+        }}
+      />
     </>
   );
 }

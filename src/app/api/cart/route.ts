@@ -14,8 +14,18 @@ export const POST = route(async (request: Request) => {
   const key = await getOrCreateOwnerKey();
   const user = await getSessionUser();
 
-  const result = await addToCart(key, input.productId, input.quantity, input.note || undefined, user?.id);
-  if ("error" in result) return fail(result.error, 404);
+  const result = await addToCart({
+    key,
+    productId: input.productId,
+    variantId: input.variantId || undefined,
+    quantity: input.quantity,
+    note: input.note || undefined,
+    userId: user?.id,
+  });
+  // 409, not 404: the piece exists, it just cannot be added as asked — a
+  // missing size or a sold-out option. The form shows the message either way,
+  // but the status should not claim the URL was wrong.
+  if ("error" in result) return fail(result.error, 409);
 
   return ok(serialiseCart(result.cart));
 });
@@ -23,7 +33,11 @@ export const POST = route(async (request: Request) => {
 export const PATCH = route(async (request: Request) => {
   const input = cartUpdateSchema.parse(await readJson(request));
   const key = await getOrCreateOwnerKey();
-  return ok(serialiseCart(await setCartQuantity(key, input.productId, input.quantity)));
+  return ok(
+    serialiseCart(
+      await setCartQuantity(key, input.productId, input.quantity, input.variantId || undefined),
+    ),
+  );
 });
 
 export const DELETE = route(async () => {

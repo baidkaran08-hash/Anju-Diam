@@ -2,6 +2,7 @@ import { prisma } from "@/lib/prisma";
 import { getSessionUser } from "@/lib/auth";
 import { getOrCreateOwnerKey } from "@/lib/owner";
 import { clearCart, getCart } from "@/lib/cart";
+import { availability, effectivePriceMinor, variantOrderable } from "@/lib/stock";
 import { checkoutSchema } from "@/lib/validation";
 import { fail, ok, readJson, route } from "@/lib/api";
 import { clientIp, rateLimit } from "@/lib/rate-limit";
@@ -43,35 +44,89 @@ export const POST = route(async (request: Request) => {
 
   const user = await getSessionUser();
 
-  // Prices come from the product rows, never from the client.
+  // Last check before the order is written. A piece can sell while it sits in
+  // someone's selection, and the cart was only validated when it went in.
+  for (const item of cart.items) {
+    if (item.variant) {
+      if (!variantOrderable(item.product, item.variant)) {
+        return fail(
+          `${item.product.name} — ${item.variant.label} was taken while you were deciding. Remove it, or enquire and we will make another.`,
+          409,
+        );
+      }
+      if (!item.product.madeToOrder && item.quantity > item.variant.stock) {
+        return fail(
+          `Only ${item.variant.stock} of ${item.product.name} — ${item.variant.label} remain. Adjust the quantity to continue.`,
+          409,
+        );
+      }
+    } else if (!availability(item.product).orderable) {
+      return fail(
+        `${item.product.name} was taken while you were deciding. Remove it, or enquire and we will make another.`,
+        409,
+      );
+    } else if (!item.product.madeToOrder && item.quantity > item.product.stock) {
+      return fail(
+        `Only ${item.product.stock} of ${item.product.name} remain. Adjust the quantity to continue.`,
+        409,
+      );
+    }
+  }
+
+  // Prices come from the product rows, never from the client. The option's
+  // override wins when it has one.
   const lines = cart.items.map((item) => ({
     productId: item.productId,
     quantity: item.quantity,
-    unitPriceMinor: item.product.priceMinor,
+    unitPriceMinor: effectivePriceMinor(item.product, item.variant),
+    variantLabel: item.variant?.label ?? null,
     note: item.note,
     name: item.product.name,
   }));
   const totalMinor = lines.reduce((sum, line) => sum + line.unitPriceMinor * line.quantity, 0);
 
-  const order = await prisma.order.create({
-    data: {
-      reference: await nextReference(),
-      userId: user?.id,
-      status: "PENDING",
-      totalMinor,
-      currency: cart.items[0]!.product.currency,
-      customerName: input.customerName,
-      customerEmail: input.customerEmail,
-      customerPhone: input.customerPhone || null,
-      shippingLine1: input.shippingLine1,
-      shippingCity: input.shippingCity,
-      shippingPost: input.shippingPost,
-      shippingCountry: input.shippingCountry,
-      message: input.message || null,
-      items: {
-        create: lines.map(({ name: _name, ...line }) => line),
+  // The order and the stock it consumes are written together — a crash between
+  // the two would either sell a piece twice or lose one from the count.
+  const order = await prisma.$transaction(async (tx) => {
+    const created = await tx.order.create({
+      data: {
+        reference: await nextReference(),
+        userId: user?.id,
+        status: "PENDING",
+        totalMinor,
+        currency: cart.items[0]!.product.currency,
+        customerName: input.customerName,
+        customerEmail: input.customerEmail,
+        customerPhone: input.customerPhone || null,
+        shippingLine1: input.shippingLine1,
+        shippingCity: input.shippingCity,
+        shippingPost: input.shippingPost,
+        shippingCountry: input.shippingCountry,
+        message: input.message || null,
+        items: {
+          create: lines.map(({ name: _name, ...line }) => line),
+        },
       },
-    },
+    });
+
+    // Made-to-order pieces are not counted, so nothing to draw down.
+    for (const item of cart.items) {
+      if (item.product.madeToOrder) continue;
+
+      if (item.variantId) {
+        await tx.productVariant.update({
+          where: { id: item.variantId },
+          data: { stock: { decrement: item.quantity } },
+        });
+      } else {
+        await tx.product.update({
+          where: { id: item.productId },
+          data: { stock: { decrement: item.quantity } },
+        });
+      }
+    }
+
+    return created;
   });
 
   await clearCart(key);

@@ -11,7 +11,8 @@ import { DiamondRule } from "@/components/Logo";
 import { getProductBySlug, getRelated } from "@/lib/catalogue";
 import { Price, ConversionNote } from "@/components/CurrencyProvider";
 import { categoryByEnum, site, whatsappHref } from "@/lib/site";
-import { metalLabel, stoneShapeLabel, type Metal, type StoneShape } from "@/lib/enums";
+import { certLabLabel, metalLabel, stoneShapeLabel, type CertLab, type Metal, type StoneShape } from "@/lib/enums";
+import { availability, priceRangeMinor } from "@/lib/stock";
 
 export async function generateMetadata({
   params,
@@ -42,17 +43,49 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
   const related = await getRelated(product);
   const category = categoryByEnum.get(product.category as never);
 
-  const spec: [string, string][] = [
-    ["Metal", metalLabel[product.metal as Metal] ?? product.metal],
-    ["Gross weight", `${product.grossWeightG.toFixed(2)} g`],
-    ["Diamonds", `${product.diamondCount} natural ${product.diamondCount === 1 ? "stone" : "stones"}`],
-    ["Origin", "Natural, earth-mined"],
-    ["Total carat weight", `${product.diamondCaratW.toFixed(2)} ct`],
-    ["Colour", product.diamondColour],
-    ["Clarity", product.diamondClarity],
-    ["Cut", stoneShapeLabel[product.stoneShape as StoneShape] ?? product.stoneShape],
-    ["Setting", product.illusionSet ? "Illusion set" : "Claw set"],
-  ];
+  const state = availability(product);
+  const range = priceRangeMinor(product);
+  const priceVaries = range.min !== range.max;
+
+  /**
+   * A piece imported from the house stock sheet carries only what the sheet
+   * recorded — often weight, carat and nothing else. Rows whose value is
+   * unknown are dropped from the table rather than printed as a default, so
+   * the page never asserts a colour or a clarity nobody graded.
+   */
+  const spec: [string, string][] = (
+    [
+      ["Metal", metalLabel[product.metal as Metal] ?? product.metal],
+      ["Gross weight", product.grossWeightG > 0 ? `${product.grossWeightG.toFixed(2)} g` : ""],
+      [
+        "Diamonds",
+        product.diamondCount > 0
+          ? `${product.diamondCount} natural ${product.diamondCount === 1 ? "stone" : "stones"}`
+          : "",
+      ],
+      ["Origin", "Natural, earth-mined"],
+      [
+        "Total carat weight",
+        product.diamondCaratW > 0 ? `${product.diamondCaratW.toFixed(2)} ct` : "",
+      ],
+      ["Colour", product.diamondColour],
+      ["Clarity", product.diamondClarity],
+      ["Cut", product.stoneShape ? stoneShapeLabel[product.stoneShape as StoneShape] ?? product.stoneShape : ""],
+      ["Setting", product.illusionSet ? "Illusion set" : ""],
+    ] as [string, string][]
+  ).filter(([, value]) => value.trim() !== "");
+
+  /** Same rule for the headline strip over the photograph. */
+  const highlights: [string, string][] = (
+    [
+      ["Carat", product.diamondCaratW > 0 ? `${product.diamondCaratW.toFixed(2)} ct` : ""],
+      ["Colour", product.diamondColour],
+      ["Clarity", product.diamondClarity],
+      ["Gold", product.grossWeightG > 0 ? `${product.grossWeightG.toFixed(2)} g` : ""],
+    ] as [string, string][]
+  )
+    .filter(([, value]) => value.trim() !== "")
+    .slice(0, 3);
 
   const jsonLd = {
     "@context": "https://schema.org",
@@ -70,9 +103,18 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
     ],
     offers: {
       "@type": "Offer",
-      price: (product.priceMinor / 100).toFixed(2),
+      // Schema.org uses 0 to mean "ask" — publishing the internal figure here
+      // would hand a crawler exactly the number the page declines to show.
+      price: product.priceOnEnquiry ? "0" : (range.min / 100).toFixed(2),
       priceCurrency: product.currency,
-      availability: "https://schema.org/MadeToOrder",
+      // Google penalises a feed that claims availability it does not have, so
+      // this follows the same rule the button does rather than always saying
+      // MadeToOrder.
+      availability: product.madeToOrder
+        ? "https://schema.org/MadeToOrder"
+        : state.orderable
+          ? "https://schema.org/InStock"
+          : "https://schema.org/OutOfStock",
       seller: { "@type": "Organization", name: site.legalName },
     },
   };
@@ -127,12 +169,11 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
 
                 {/* Glass spec strip. The headline numbers stay with the piece
                     when the detail column has scrolled away on a phone. */}
-                <dl className="glass glass-r absolute inset-x-4 bottom-4 grid grid-cols-3 gap-2 px-5 py-4 text-ivory md:inset-x-6 md:bottom-6 md:px-7 md:py-5">
-                  {[
-                    ["Carat", `${product.diamondCaratW.toFixed(2)} ct`],
-                    ["Colour", product.diamondColour],
-                    ["Clarity", product.diamondClarity],
-                  ].map(([term, value]) => (
+                <dl
+                  className="glass glass-r absolute inset-x-4 bottom-4 grid gap-2 px-5 py-4 text-ivory md:inset-x-6 md:bottom-6 md:px-7 md:py-5"
+                  style={{ gridTemplateColumns: `repeat(${Math.max(1, highlights.length)}, minmax(0, 1fr))` }}
+                >
+                  {highlights.map(([term, value]) => (
                     <div key={term} className="text-center">
                       <dt className="label-sm text-ivory/45">{term}</dt>
                       <dd className="mt-2 text-sm font-light tabular-nums text-gold">{value}</dd>
@@ -161,21 +202,53 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
 
               <h1 className="display-lg text-plum">{product.name}</h1>
 
-              <Price
-                minor={product.priceMinor}
-                className="mt-6 block text-2xl font-light tabular-nums text-graphite"
-              />
-              <p className="label-sm mt-3 text-graphite/40">
-                Made to order · Final price confirmed before payment
-              </p>
-              <ConversionNote className="mt-3 text-graphite/45" />
+              {product.priceOnEnquiry ? (
+                <>
+                  <p className="mt-6 text-2xl font-light text-graphite">Price on enquiry</p>
+                  <p className="label-sm mt-3 text-graphite/40">
+                    {state.label} · Written quotation within one business day
+                  </p>
+                </>
+              ) : (
+                <>
+                  <div className="mt-6 flex items-baseline gap-3">
+                    {priceVaries && (
+                      <span className="text-sm font-light text-graphite/45">from</span>
+                    )}
+                    <Price
+                      minor={range.min}
+                      className="block text-2xl font-light tabular-nums text-graphite"
+                    />
+                  </div>
+                  <p className="label-sm mt-3 text-graphite/40">
+                    {state.label} · Final price confirmed before payment
+                  </p>
+                </>
+              )}
+              {!product.priceOnEnquiry && <ConversionNote className="mt-3 text-graphite/45" />}
 
               <DiamondRule className="my-10 h-3 w-40 text-gold" />
 
               <p className="body-lg text-graphite/75">{product.description}</p>
 
               <div className="mt-12">
-                <AddToSelection productId={product.id} productName={product.name} />
+                <AddToSelection
+                  productId={product.id}
+                  productName={product.name}
+                  priceOnEnquiry={product.priceOnEnquiry}
+                  priceMinor={product.priceMinor}
+                  madeToOrder={product.madeToOrder}
+                  stock={product.stock}
+                  variantAxis={product.variantAxis}
+                  variants={product.variants.map((variant) => ({
+                    id: variant.id,
+                    label: variant.label,
+                    sku: variant.sku,
+                    priceMinor: variant.priceMinor,
+                    stock: variant.stock,
+                    position: variant.position,
+                  }))}
+                />
               </div>
 
               {whatsapp && (
@@ -214,6 +287,69 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
                   Weights are nominal and confirmed on the finished piece.
                 </p>
               </section>
+
+              {/* ── Grading reports ─────────────────────────────────────── */}
+              {product.certificates.length > 0 && (
+                <section className="mt-16" aria-labelledby="reports">
+                  <h2 id="reports" className="label mb-8 text-wine">
+                    {product.certificates.length === 1 ? "Grading report" : "Grading reports"}
+                  </h2>
+
+                  <ul className="space-y-5">
+                    {product.certificates.map((certificate) => {
+                      const detail = [
+                        certificate.caratW ? `${certificate.caratW.toFixed(2)} ct` : null,
+                        certificate.colour,
+                        certificate.clarity,
+                        certificate.cut,
+                      ].filter(Boolean);
+
+                      return (
+                        <li
+                          key={certificate.id}
+                          className="border border-graphite/12 px-6 py-5"
+                        >
+                          <div className="flex flex-wrap items-baseline justify-between gap-x-6 gap-y-2">
+                            <p className="text-sm font-light text-plum">
+                              {certLabLabel[certificate.lab as CertLab] ?? certificate.lab}
+                              <span className="text-graphite/45"> · </span>
+                              <span className="tabular-nums text-graphite/70">
+                                {certificate.number}
+                              </span>
+                            </p>
+
+                            {certificate.documentUrl && (
+                              <a
+                                href={certificate.documentUrl}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="link-rule text-sm text-plum"
+                              >
+                                View the report
+                              </a>
+                            )}
+                          </div>
+
+                          {detail.length > 0 && (
+                            <p className="mt-2 text-xs font-light tabular-nums text-graphite/55">
+                              {detail.join(" · ")}
+                              {certificate.issuedOn && (
+                                <>
+                                  {" · issued "}
+                                  {certificate.issuedOn.toLocaleDateString("en-GB", {
+                                    year: "numeric",
+                                    month: "long",
+                                  })}
+                                </>
+                              )}
+                            </p>
+                          )}
+                        </li>
+                      );
+                    })}
+                  </ul>
+                </section>
+              )}
             </div>
           </div>
         </div>
@@ -247,14 +383,17 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
       )}
 
       {/* ── Enquire about this piece ────────────────────────────────────── */}
-      <section className="bg-champagne py-24 md:py-32">
+      {/* scroll-mt keeps the heading clear of the fixed header when the
+          "Enquire about this piece" button jumps down here. */}
+      <section id="enquire" className="scroll-mt-28 bg-champagne py-24 md:py-32">
         <div className="shell grid gap-14 lg:grid-cols-[0.8fr_1.2fr]">
           <div>
             <p className="label mb-5 text-wine">Enquire</p>
             <h2 className="display-md text-plum">Questions about this piece?</h2>
             <p className="measure mt-6 text-graphite/70">
-              Sizing, an alternative metal, a larger centre stone, or the same design at a different
-              budget — write to us and we will answer honestly.
+              {product.priceOnEnquiry
+                ? "Tell us which piece and what you have in mind — sizing, an alternative metal, a larger centre stone. We reply with a written quotation, and honestly about what is possible."
+                : "Sizing, an alternative metal, a larger centre stone, or the same design at a different budget — write to us and we will answer honestly."}
             </p>
           </div>
           <EnquiryForm kind="PRODUCT" subject={`${product.name} (${product.slug})`} />

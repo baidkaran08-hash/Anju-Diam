@@ -6,6 +6,7 @@ import { studioSummary } from "@/lib/admin-products";
 import { mailIsConfigured } from "@/lib/mailer";
 import { formatMoneyCompact } from "@/lib/money";
 import { enquiryKindLabel, type EnquiryKind } from "@/lib/enums";
+import { LOW_STOCK_AT } from "@/lib/stock";
 
 export const metadata: Metadata = { title: "Studio", robots: { index: false } };
 
@@ -18,6 +19,9 @@ export default async function StudioOverview() {
 
   const photoShare =
     summary.products > 0 ? Math.round((summary.withPhotos / summary.products) * 100) : 0;
+
+  const attention =
+    summary.outOfStock + summary.lowStock + summary.unpriced + summary.missingPhotos;
 
   return (
     <div className="space-y-14">
@@ -61,6 +65,49 @@ export default async function StudioOverview() {
             Everything without a photograph falls back to generated artwork. Open a piece and
             upload photographs to replace it — nothing else needs changing.
           </p>
+        </div>
+      </section>
+
+      {/* ── Needs attention ─────────────────────────────────────────────
+          Every tile is a link to the list behind it. A dashboard that only
+          shows a number leaves the reader to work out which pieces it meant. */}
+      <section>
+        <div className="mb-6 flex flex-wrap items-baseline justify-between gap-3">
+          <h2 className="label text-wine">Needs attention</h2>
+          {attention === 0 && (
+            <p className="label-sm text-graphite/40">Nothing outstanding</p>
+          )}
+        </div>
+
+        <div className="grid gap-px overflow-hidden border border-graphite/12 bg-graphite/12 sm:grid-cols-2 lg:grid-cols-4">
+          <Alert
+            label="Spoken for"
+            value={summary.outOfStock}
+            href="/admin/products?attention=out-of-stock"
+            note="Live, counted, nothing left"
+            tone="critical"
+          />
+          <Alert
+            label="Running low"
+            value={summary.lowStock}
+            href="/admin/products?attention=low-stock"
+            note={`2 to ${LOW_STOCK_AT} left of a repeatable line`}
+            tone="warning"
+          />
+          <Alert
+            label="Live without a price"
+            value={summary.unpriced}
+            href="/admin/products?attention=unpriced"
+            note="Showing ฿0 to customers"
+            tone="critical"
+          />
+          <Alert
+            label="No photograph"
+            value={summary.missingPhotos}
+            href="/admin/products?attention=no-photo"
+            note="Falling back to artwork"
+            tone="warning"
+          />
         </div>
       </section>
 
@@ -137,6 +184,43 @@ function Stat({ label, value, href }: { label: string; value: string; href: stri
     <Link href={href} className="bg-ivory p-7 transition-colors hover:bg-sand/50">
       <p className="display-md text-plum">{value}</p>
       <p className="label-sm mt-3 text-graphite/45">{label}</p>
+    </Link>
+  );
+}
+
+/**
+ * A count that reads as urgent only when it is. At zero the tile goes quiet —
+ * a board where everything shouts is a board nobody reads.
+ */
+function Alert({
+  label,
+  value,
+  href,
+  note,
+  tone,
+}: {
+  label: string;
+  value: number;
+  href: string;
+  note: string;
+  tone: "critical" | "warning";
+}) {
+  const quiet = value === 0;
+  const accent = quiet
+    ? "text-graphite/25"
+    : tone === "critical"
+      ? "text-[#B4485F]"
+      : "text-gold-deep";
+
+  return (
+    <Link
+      href={href}
+      className="group bg-ivory p-7 transition-colors hover:bg-sand/50"
+      aria-label={`${value} ${label}`}
+    >
+      <p className={`display-md tabular-nums ${accent}`}>{value}</p>
+      <p className="label-sm mt-3 text-graphite/45">{label}</p>
+      <p className="mt-2 text-xs font-light text-graphite/40">{quiet ? "All clear" : note}</p>
     </Link>
   );
 }

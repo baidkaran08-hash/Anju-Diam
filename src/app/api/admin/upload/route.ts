@@ -5,7 +5,7 @@ import sharp from "sharp";
 import { requireAdmin } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { fail, ok, route } from "@/lib/api";
-import { storeImage, usingBlob } from "@/lib/storage";
+import { storeImage, storageBackend } from "@/lib/storage";
 
 /**
  * Product photography upload.
@@ -105,7 +105,7 @@ export const POST = route(async (request: Request) => {
         width: output.width,
         height: output.height,
         bytes: full.length,
-        backend: usingBlob() ? "vercel-blob" : "disk",
+        backend: storageBackend(),
       },
     },
     { status: 201 },
