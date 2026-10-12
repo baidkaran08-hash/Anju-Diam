@@ -17,6 +17,8 @@
 import { execSync } from "node:child_process";
 import { PrismaClient } from "@prisma/client";
 
+import { applyCatalogue, secureStudio } from "./apply-catalogue";
+
 async function main() {
   console.log("[prepare] syncing database schema…");
   // No --accept-data-loss: without it Prisma refuses rather than dropping a
@@ -26,6 +28,18 @@ async function main() {
   const prisma = new PrismaClient();
 
   try {
+    // Never allowed to fail the deploy: a problem here must not take the shop down.
+    try {
+      await secureStudio(prisma);
+    } catch (error) {
+      console.error("[studio] setup failed, continuing:", error);
+    }
+    try {
+      await applyCatalogue(prisma);
+    } catch (error) {
+      console.error("[catalogue] import failed, continuing:", error);
+    }
+
     const products = await prisma.product.count();
 
     if (products > 0) {
