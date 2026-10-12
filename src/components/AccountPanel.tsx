@@ -17,7 +17,13 @@ type Order = {
   totalMinor: number;
   currency: string;
   createdAt: string;
-  items: { id: string; quantity: number; product: { name: string; slug: string } }[];
+  items: {
+    id: string;
+    quantity: number;
+    /** Snapshotted at checkout, so it survives the option being withdrawn. */
+    variantLabel: string | null;
+    product: { name: string; slug: string };
+  }[];
 };
 
 export default function AccountPanel({
@@ -233,6 +239,9 @@ export default function AccountPanel({
                     <Link href={`/products/${item.product.slug}`} className="hover:text-plum">
                       {item.product.name}
                     </Link>
+                    {item.variantLabel && (
+                      <span className="text-graphite/40"> · {item.variantLabel}</span>
+                    )}
                     {item.quantity > 1 && <span className="text-graphite/40"> × {item.quantity}</span>}
                   </li>
                 ))}

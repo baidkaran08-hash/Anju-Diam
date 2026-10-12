@@ -25,7 +25,7 @@ generator client {
 }
 
 datasource db {
-  provider = "sqlite"
+  provider = "postgresql"
   url      = env("DATABASE_URL")
 }
 
@@ -35,6 +35,12 @@ model Product {
   name        String
   description String
 
+  /// The house's own tag number, as written on the physical label and in the
+  /// stock sheet. Nullable because the placeholder catalogue predates it, and
+  /// unique so a re-import updates the piece rather than duplicating it —
+  /// Postgres allows many NULLs in a unique index, so untagged rows coexist.
+  sku String? @unique
+
   /// One of RINGS | EARRINGS | NECKLACES | BRACELETS | GIFTING
   category String
   /// One of DRAFT | ACTIVE | ARCHIVED
@@ -43,6 +49,13 @@ model Product {
   /// Held in the smallest currency unit (satang) to avoid float drift.
   priceMinor Int
   currency   String @default("THB")
+
+  /// When true the storefront shows no figure for this piece and asks the
+  /// customer to write in instead. The house negotiates at this end of the
+  /// market, and publishing a number would misrepresent how it actually sells.
+  /// `priceMinor` may still hold an internal figure — it is simply never shown,
+  /// never sorted on, and never totalled in a selection.
+  priceOnEnquiry Boolean @default(false)
 
   // ── Physical specification: the PRD's required product data ──────────────
   grossWeightG Float
@@ -67,10 +80,28 @@ model Product {
   /// Ordering weight for merchandised grids; lower sorts first.
   rank       Int     @default(500)
 
+  // ── Availability ─────────────────────────────────────────────────────────
+  // The house works made-to-order, so that is the default and such a piece is
+  // always orderable. Set madeToOrder false to have the storefront respect a
+  // real count. When variants exist the count lives on each variant instead
+  // and these two fields are ignored — see src/lib/stock.ts, which is the one
+  // place that decides.
+  madeToOrder Boolean @default(true)
+  stock       Int     @default(0)
+  /// What the variants vary by, shown as the selector label, e.g. "Ring size".
+  /// Null on a one-of-one piece, which then has no variants at all.
+  variantAxis String?
+  /// The studio's one-click "this piece has been sold" switch. It beats every
+  /// rule above: a sold piece stays on the storefront, labelled Sold out, and
+  /// cannot be added to a selection — whether it is made to order or counted.
+  soldOut     Boolean @default(false)
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   images        ProductImage[]
+  variants      ProductVariant[]
+  certificates  Certificate[]
   cartItems     CartItem[]
   wishlistItems WishlistItem[]
   orderItems    OrderItem[]
@@ -88,6 +119,59 @@ model ProductImage {
   url       String
   alt       String @default("")
   position  Int    @default(0)
+
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@index([productId, position])
+}
+
+/// A buyable option of a piece — a ring size, a chain length, a metal colour.
+/// Single-axis on purpose: the axis is named on the product (`variantAxis`),
+/// and a full size x metal matrix is not something this catalogue needs. A
+/// piece with no rows here is one-of-one and sells on the product row alone.
+model ProductVariant {
+  id        String @id @default(cuid())
+  productId String
+  /// Shown verbatim in the selector, e.g. "US 6" or "42 cm".
+  label     String
+  /// The house's own reference for this exact option.
+  sku       String?
+  /// Overrides the product price when set. Null means "same as the piece",
+  /// which is the common case — most sizes cost the same.
+  priceMinor Int?
+  /// On-hand units. Ignored while the parent piece is made-to-order.
+  stock     Int    @default(0)
+  position  Int    @default(0)
+
+  product   Product    @relation(fields: [productId], references: [id], onDelete: Cascade)
+  cartItems CartItem[]
+
+  @@unique([productId, label])
+  @@index([productId, position])
+}
+
+/// Grading report for a piece. Separate rows rather than columns on Product
+/// because a multi-stone piece can carry several, and because the scan is an
+/// uploaded file that wants its own lifecycle.
+model Certificate {
+  id        String @id @default(cuid())
+  productId String
+  /// One of GIA | IGI | HRD | AGS | GII | OTHER
+  lab       String @default("GIA")
+  /// The report number as printed. Not unique: a re-issued report legitimately
+  /// repeats, and rejecting that at the database would block a real import.
+  number    String
+  /// Uploaded PDF or scan, served by /api/media like product photography.
+  documentUrl String?
+
+  // Optional because a report is often filed before it is fully transcribed.
+  caratW   Float?
+  colour   String?
+  clarity  String?
+  cut      String?
+  issuedOn DateTime?
+
+  position Int @default(0)
 
   product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
 
@@ -125,14 +209,22 @@ model CartItem {
   id        String  @id @default(cuid())
   cartId    String
   productId String
+  /// Which option was chosen. Null on a one-of-one piece. SetNull rather than
+  /// Cascade: withdrawing a size should not silently empty someone's selection,
+  /// it should leave the line for the studio to resolve.
+  variantId String?
   quantity  Int     @default(1)
   /// Free-text personalisation, e.g. "size 14, rose gold instead".
   note      String?
 
-  cart    Cart    @relation(fields: [cartId], references: [id], onDelete: Cascade)
-  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+  cart    Cart            @relation(fields: [cartId], references: [id], onDelete: Cascade)
+  product Product         @relation(fields: [productId], references: [id], onDelete: Cascade)
+  variant ProductVariant? @relation(fields: [variantId], references: [id], onDelete: SetNull)
 
-  @@unique([cartId, productId])
+  // Two sizes of one ring are two lines. SQL treats NULLs as distinct, so this
+  // does not constrain the no-variant case — src/lib/cart.ts matches on both
+  // columns before inserting, which is what actually prevents a duplicate.
+  @@unique([cartId, productId, variantId])
 }
 
 model WishlistItem {
@@ -188,6 +280,9 @@ model OrderItem {
   quantity       Int
   /// Snapshotted so historic orders survive a price change.
   unitPriceMinor Int
+  /// Snapshotted for the same reason, and so the line still reads "US 6" after
+  /// that size is withdrawn. No FK: the label is the record, not a pointer.
+  variantLabel   String?
   note           String?
 
   order   Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)

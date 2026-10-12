@@ -110,11 +110,13 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
       // Google penalises a feed that claims availability it does not have, so
       // this follows the same rule the button does rather than always saying
       // MadeToOrder.
-      availability: product.madeToOrder
-        ? "https://schema.org/MadeToOrder"
-        : state.orderable
-          ? "https://schema.org/InStock"
-          : "https://schema.org/OutOfStock",
+      availability: product.soldOut
+        ? "https://schema.org/SoldOut"
+        : product.madeToOrder
+          ? "https://schema.org/MadeToOrder"
+          : state.orderable
+            ? "https://schema.org/InStock"
+            : "https://schema.org/OutOfStock",
       seller: { "@type": "Organization", name: site.legalName },
     },
   };
@@ -238,6 +240,7 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
                   priceOnEnquiry={product.priceOnEnquiry}
                   priceMinor={product.priceMinor}
                   madeToOrder={product.madeToOrder}
+                  soldOut={product.soldOut}
                   stock={product.stock}
                   variantAxis={product.variantAxis}
                   variants={product.variants.map((variant) => ({

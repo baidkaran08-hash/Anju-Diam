@@ -5,6 +5,7 @@ import {
   replaceCertificates,
   replaceProductImages,
   replaceProductVariants,
+  setSoldOut,
   updateProduct,
 } from "@/lib/admin-products";
 import {
@@ -12,8 +13,10 @@ import {
   productImageOrderSchema,
   productVariantsSchema,
   productWriteSchema,
+  soldOutSchema,
 } from "@/lib/validation";
 import { fail, ok, readJson, route } from "@/lib/api";
+import { revalidateCatalogue } from "@/lib/revalidate";
 
 type Ctx = { params: Promise<{ id: string }> };
 
@@ -40,24 +43,38 @@ export const PATCH = route(async (request: Request, context: Ctx) => {
   // single-key test is what separates them: a full save always carries `name`
   // and friends alongside, and must fall through to the product schema.
   if (body && typeof body === "object" && Object.keys(body).length === 1) {
+    if ("soldOut" in body) {
+      const { soldOut } = soldOutSchema.parse(body);
+      const product = await setSoldOut(id, soldOut);
+      revalidateCatalogue();
+      return ok({ product });
+    }
+
     if ("images" in body) {
       const { images } = productImageOrderSchema.parse(body);
-      return ok({ product: await replaceProductImages(id, images) });
+      const product = await replaceProductImages(id, images);
+      revalidateCatalogue();
+      return ok({ product });
     }
 
     if ("variants" in body) {
       const { variants } = productVariantsSchema.parse(body);
-      return ok({ product: await replaceProductVariants(id, variants) });
+      const product = await replaceProductVariants(id, variants);
+      revalidateCatalogue();
+      return ok({ product });
     }
 
     if ("certificates" in body) {
       const { certificates } = certificatesSchema.parse(body);
-      return ok({ product: await replaceCertificates(id, certificates) });
+      const product = await replaceCertificates(id, certificates);
+      revalidateCatalogue();
+      return ok({ product });
     }
   }
 
   const input = productWriteSchema.parse(body);
   const product = await updateProduct(id, input);
+  revalidateCatalogue();
   return ok({ product });
 });
 
@@ -69,5 +86,6 @@ export const DELETE = route(async (_request: Request, context: Ctx) => {
   if (!existing) return fail("No such piece.", 404);
 
   const result = await deleteOrArchiveProduct(id);
+  revalidateCatalogue();
   return ok(result);
 });

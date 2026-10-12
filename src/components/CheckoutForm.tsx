@@ -146,9 +146,15 @@ export default function CheckoutForm() {
 
           <ul className="space-y-4">
             {items.map((item) => (
-              <li key={item.productId} className="flex justify-between gap-5 text-sm font-light">
+              <li
+                key={`${item.productId}:${item.variantId ?? ""}`}
+                className="flex justify-between gap-5 text-sm font-light"
+              >
                 <span className="min-w-0">
                   {item.name}
+                  {item.variantLabel && (
+                    <span className="text-graphite/45"> · {item.variantLabel}</span>
+                  )}
                   {item.quantity > 1 && <span className="text-graphite/45"> × {item.quantity}</span>}
                   {item.note && (
                     <span className="mt-1 block text-xs italic text-graphite/45">{item.note}</span>

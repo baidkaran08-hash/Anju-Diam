@@ -590,8 +590,11 @@ export function ProductArt({
   title?: string;
 }) {
   const seed = hash(product.slug);
-  const shape = (product.stoneShape as StoneShape) ?? "ROUND";
-  const metal = (product.metal as Metal) ?? "YELLOW_GOLD_18K";
+  // `||` rather than `??`: an imported piece whose shape was never recorded
+  // carries an empty string, not null, and `??` would let "" through and draw
+  // nothing at all.
+  const shape = ((product.stoneShape as StoneShape) || "ROUND") as StoneShape;
+  const metal = ((product.metal as Metal) || "YELLOW_GOLD_18K") as Metal;
 
   const palette = TONES[tone];
   const metalHue = metalTone[metal] ?? metalTone.YELLOW_GOLD_18K;

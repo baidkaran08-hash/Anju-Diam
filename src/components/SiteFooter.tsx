@@ -74,6 +74,15 @@ export default function SiteFooter() {
           <p className="label-sm text-ivory/35">
             {site.city}, {site.country} · Established {site.founded}
           </p>
+          {/* The way in to the catalogue studio. Public on purpose so the house
+              never has to remember a hidden address; the studio itself shows
+              "Administrators only" to anyone without a studio account. */}
+          <Link
+            href="/admin"
+            className="label-sm text-ivory/35 transition-colors hover:text-gold"
+          >
+            Studio login
+          </Link>
         </div>
       </div>
     </footer>

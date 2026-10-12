@@ -5,12 +5,15 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 
 import ImageManager, { type GalleryImage } from "@/components/admin/ImageManager";
+import VariantManager, { type VariantRow } from "@/components/admin/VariantManager";
+import CertificateManager, { type CertificateRow } from "@/components/admin/CertificateManager";
 import { ProductArt } from "@/lib/product-art";
 import {
   CATEGORIES,
   METALS,
   PRODUCT_STATUSES,
   STONE_SHAPES,
+  VARIANT_AXIS_SUGGESTIONS,
   metalLabel,
   stoneShapeLabel,
   type Category,
@@ -28,6 +31,7 @@ export type ProductRecord = {
   status: string;
   priceMinor: number;
   currency: string;
+  priceOnEnquiry: boolean;
   grossWeightG: number;
   metal: string;
   metalPurity: string;
@@ -40,7 +44,29 @@ export type ProductRecord = {
   videoUrl: string | null;
   isFeatured: boolean;
   rank: number;
+  madeToOrder: boolean;
+  soldOut: boolean;
+  stock: number;
+  variantAxis: string | null;
   images: GalleryImage[];
+  variants: {
+    id: string;
+    label: string;
+    sku: string | null;
+    priceMinor: number | null;
+    stock: number;
+  }[];
+  certificates: {
+    id: string;
+    lab: string;
+    number: string;
+    documentUrl: string | null;
+    caratW: number | null;
+    colour: string | null;
+    clarity: string | null;
+    cut: string | null;
+    issuedOn: string | null;
+  }[];
 };
 
 const BLANK = {
@@ -51,6 +77,7 @@ const BLANK = {
   status: "DRAFT",
   price: "",
   currency: "THB",
+  priceOnEnquiry: false,
   grossWeightG: "",
   metal: "YELLOW_GOLD_18K",
   metalPurity: "18K",
@@ -63,6 +90,10 @@ const BLANK = {
   videoUrl: "",
   isFeatured: false,
   rank: "500",
+  madeToOrder: true,
+  soldOut: false,
+  stock: "0",
+  variantAxis: "",
 };
 
 type FormState = typeof BLANK;
@@ -76,6 +107,7 @@ function toForm(product: ProductRecord): FormState {
     status: product.status,
     price: String(product.priceMinor / 100),
     currency: product.currency,
+    priceOnEnquiry: product.priceOnEnquiry,
     grossWeightG: String(product.grossWeightG),
     metal: product.metal,
     metalPurity: product.metalPurity,
@@ -88,6 +120,10 @@ function toForm(product: ProductRecord): FormState {
     videoUrl: product.videoUrl ?? "",
     isFeatured: product.isFeatured,
     rank: String(product.rank),
+    madeToOrder: product.madeToOrder,
+    soldOut: product.soldOut,
+    stock: String(product.stock),
+    variantAxis: product.variantAxis ?? "",
   };
 }
 
@@ -97,6 +133,28 @@ export default function ProductForm({ product }: { product?: ProductRecord }) {
 
   const [form, setForm] = useState<FormState>(product ? toForm(product) : BLANK);
   const [images, setImages] = useState<GalleryImage[]>(product?.images ?? []);
+  const [variants, setVariants] = useState<VariantRow[]>(
+    product?.variants.map((variant) => ({
+      id: variant.id,
+      label: variant.label,
+      sku: variant.sku ?? "",
+      price: variant.priceMinor == null ? "" : String(variant.priceMinor / 100),
+      stock: String(variant.stock),
+    })) ?? [],
+  );
+  const [certificates, setCertificates] = useState<CertificateRow[]>(
+    product?.certificates.map((certificate) => ({
+      id: certificate.id,
+      lab: certificate.lab,
+      number: certificate.number,
+      documentUrl: certificate.documentUrl ?? "",
+      caratW: certificate.caratW == null ? "" : String(certificate.caratW),
+      colour: certificate.colour ?? "",
+      clarity: certificate.clarity ?? "",
+      cut: certificate.cut ?? "",
+      issuedOn: certificate.issuedOn ? certificate.issuedOn.slice(0, 10) : "",
+    })) ?? [],
+  );
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [formError, setFormError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
@@ -281,7 +339,112 @@ export default function ProductForm({ product }: { product?: ProductRecord }) {
                 className="field"
               />
             </Field>
+
+            <Field
+              label="How the price is shown"
+              hint={
+                form.priceOnEnquiry
+                  ? "The storefront shows no figure and asks the customer to write in. The price above stays here for your reference only."
+                  : "The price above appears on the piece, the grid and the selection."
+              }
+              error={errors.priceOnEnquiry}
+              className="sm:col-span-2"
+            >
+              <label className="flex items-center gap-3 text-sm font-light">
+                <input
+                  type="checkbox"
+                  checked={form.priceOnEnquiry}
+                  onChange={(event) => set("priceOnEnquiry", event.target.checked)}
+                  className="h-4 w-4 accent-plum"
+                />
+                Price on enquiry
+              </label>
+            </Field>
           </Row>
+        </Section>
+
+        {/* ── Availability ──────────────────────────────────────────────── */}
+        <Section title="Availability">
+          <Row>
+            <Field
+              label="Sold out"
+              hint="Keeps the piece on the website, marked Sold out, and stops it being added to a selection. Untick to put it back on sale."
+              error={errors.soldOut}
+              className="sm:col-span-2"
+            >
+              <label className="flex items-center gap-3 text-sm font-light">
+                <input
+                  type="checkbox"
+                  checked={form.soldOut}
+                  onChange={(event) => set("soldOut", event.target.checked)}
+                  className="h-4 w-4 accent-plum"
+                />
+                Mark this piece as sold out
+              </label>
+            </Field>
+
+            <Field
+              label="How it is sold"
+              hint={
+                form.madeToOrder
+                  ? "Always orderable. Counts below are ignored."
+                  : "The storefront will stop selling it at zero."
+              }
+              error={errors.madeToOrder}
+              className="sm:col-span-2"
+            >
+              <label className="flex items-center gap-3 text-sm font-light">
+                <input
+                  type="checkbox"
+                  checked={form.madeToOrder}
+                  onChange={(event) => set("madeToOrder", event.target.checked)}
+                  className="h-4 w-4 accent-plum"
+                />
+                Made to order
+              </label>
+            </Field>
+
+            {!form.madeToOrder && variants.length === 0 && (
+              <Field
+                label="On hand"
+                hint="Units in the safe. Only used when there are no options."
+                error={errors.stock}
+              >
+                <input
+                  value={form.stock}
+                  onChange={(event) => set("stock", event.target.value)}
+                  inputMode="numeric"
+                  className="field"
+                />
+              </Field>
+            )}
+
+            <Field
+              label="Options vary by"
+              hint="Leave blank for a one-of-one piece. This labels the selector."
+              error={errors.variantAxis}
+            >
+              <input
+                value={form.variantAxis}
+                onChange={(event) => set("variantAxis", event.target.value)}
+                list="variant-axes"
+                placeholder="Ring size"
+                className="field"
+              />
+              <datalist id="variant-axes">
+                {VARIANT_AXIS_SUGGESTIONS.map((axis) => (
+                  <option key={axis} value={axis} />
+                ))}
+              </datalist>
+            </Field>
+          </Row>
+
+          {!form.madeToOrder && variants.length > 0 && (
+            <p className="mt-5 text-xs font-light leading-relaxed text-graphite/55">
+              This piece has options, so availability comes from their counts — set those in
+              the Options panel rather than here.
+            </p>
+          )}
         </Section>
 
         {/* ── Specification ─────────────────────────────────────────────── */}
@@ -293,6 +456,10 @@ export default function ProductForm({ product }: { product?: ProductRecord }) {
                 onChange={(event) => set("metal", event.target.value)}
                 className="field"
               >
+                {/* An imported piece carries no metal. Without this the select
+                    would show the first option and the next save would assert
+                    a metal nobody recorded. */}
+                <option value="">Not recorded</option>
                 {METALS.map((metal) => (
                   <option key={metal} value={metal}>
                     {metalLabel[metal]}
@@ -465,12 +632,30 @@ export default function ProductForm({ product }: { product?: ProductRecord }) {
         </div>
 
         {editing ? (
-          <ImageManager productId={product!.id} images={images} onChange={setImages} />
+          <>
+            <ImageManager productId={product!.id} images={images} onChange={setImages} />
+
+            <VariantManager
+              productId={product!.id}
+              axis={form.variantAxis}
+              currency={form.currency}
+              basePrice={Math.round((Number(form.price) || 0) * 100)}
+              variants={variants}
+              onChange={setVariants}
+            />
+
+            <CertificateManager
+              productId={product!.id}
+              certificates={certificates}
+              onChange={setCertificates}
+            />
+          </>
         ) : (
           <div className="border border-dashed border-graphite/20 p-6">
-            <h2 className="label mb-3 text-wine">Photographs</h2>
+            <h2 className="label mb-3 text-wine">Photographs, options and reports</h2>
             <p className="text-xs font-light leading-relaxed text-graphite/55">
-              Save the piece first, then you can upload photographs to it.
+              Save the piece first. Photographs, sizes and grading reports all attach to it
+              afterwards.
             </p>
           </div>
         )}

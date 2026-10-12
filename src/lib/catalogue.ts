@@ -9,10 +9,37 @@ import { productQuerySchema } from "@/lib/validation";
 export type ProductQuery = z.infer<typeof productQuerySchema>;
 
 export type CatalogueProduct = Prisma.ProductGetPayload<{
-  include: { images: { orderBy: { position: "asc" } } };
+  include: {
+    images: { orderBy: { position: "asc" } };
+    variants: { orderBy: { position: "asc" } };
+  };
 }>;
 
-const withImages = { images: { orderBy: { position: "asc" } } } as const;
+export type CatalogueProductDetail = Prisma.ProductGetPayload<{
+  include: {
+    images: { orderBy: { position: "asc" } };
+    variants: { orderBy: { position: "asc" } };
+    certificates: { orderBy: { position: "asc" } };
+  };
+}>;
+
+/**
+ * Grid shape. Options are included because a card has to say "from ฿X" and
+ * whether anything is left, and both are answered from the variant rows — see
+ * src/lib/stock.ts. Reports are not: nothing on a card shows them, and joining
+ * them in would be pure weight on the collections page.
+ */
+const withImages = {
+  images: { orderBy: { position: "asc" } },
+  variants: { orderBy: { position: "asc" } },
+} as const;
+
+/** Detail shape — everything the product page renders. */
+const withDetail = {
+  images: { orderBy: { position: "asc" } },
+  variants: { orderBy: { position: "asc" } },
+  certificates: { orderBy: { position: "asc" } },
+} as const;
 
 function whereFor(query: Partial<ProductQuery>): Prisma.ProductWhereInput {
   const where: Prisma.ProductWhereInput = { status: "ACTIVE" };
@@ -21,7 +48,11 @@ function whereFor(query: Partial<ProductQuery>): Prisma.ProductWhereInput {
   if (query.metal) where.metal = query.metal;
   if (query.illusion) where.illusionSet = query.illusion === "true";
 
+  // A price filter can only speak about pieces that publish one. A
+  // price-on-enquiry piece is excluded rather than swept in at its internal
+  // figure, which the shopper was never shown and cannot have filtered on.
   if (query.minPrice !== undefined || query.maxPrice !== undefined) {
+    where.priceOnEnquiry = false;
     where.priceMinor = {
       ...(query.minPrice !== undefined ? { gte: query.minPrice * 100 } : {}),
       ...(query.maxPrice !== undefined ? { lte: query.maxPrice * 100 } : {}),
@@ -44,10 +75,18 @@ function whereFor(query: Partial<ProductQuery>): Prisma.ProductWhereInput {
   return where;
 }
 
+/**
+ * Sorting by price puts the pieces that publish one first, in order, and the
+ * price-on-enquiry pieces after them — `false` sorts before `true`. Without
+ * that leading clause they would all land at whatever their internal figure
+ * happens to be, which is meaningless to the shopper doing the sorting.
+ */
 const ORDER_BY: Record<ProductQuery["sort"], Prisma.ProductOrderByWithRelationInput[]> = {
-  featured: [{ rank: "asc" }, { createdAt: "desc" }],
-  "price-asc": [{ priceMinor: "asc" }],
-  "price-desc": [{ priceMinor: "desc" }],
+  // Sold pieces stay listed but sink to the end of the default order, so a
+  // shopper meets what can actually be bought first.
+  featured: [{ soldOut: "asc" }, { rank: "asc" }, { createdAt: "desc" }],
+  "price-asc": [{ priceOnEnquiry: "asc" }, { priceMinor: "asc" }],
+  "price-desc": [{ priceOnEnquiry: "asc" }, { priceMinor: "desc" }],
   newest: [{ createdAt: "desc" }],
   "carat-desc": [{ diamondCaratW: "desc" }],
 };
@@ -80,7 +119,7 @@ export async function listProducts(input: Partial<ProductQuery>) {
 export async function getProductBySlug(slug: string) {
   return prisma.product.findFirst({
     where: { slug, status: "ACTIVE" },
-    include: withImages,
+    include: withDetail,
   });
 }
 
@@ -94,6 +133,7 @@ export async function getRelated(product: { id: string; category: string; priceM
     prisma.product.findMany({
       where: {
         status: "ACTIVE",
+        soldOut: false,
         category: product.category,
         id: { not: product.id },
         priceMinor: { gte: product.priceMinor },
@@ -105,6 +145,7 @@ export async function getRelated(product: { id: string; category: string; priceM
     prisma.product.findMany({
       where: {
         status: "ACTIVE",
+        soldOut: false,
         category: product.category,
         id: { not: product.id },
         priceMinor: { lt: product.priceMinor },
@@ -126,14 +167,20 @@ export async function getRelated(product: { id: string; category: string; priceM
 export async function getFeatured() {
   return prisma.product.findMany({
     where: { status: "ACTIVE", isFeatured: true },
-    orderBy: { rank: "asc" },
+    orderBy: [{ soldOut: "asc" }, { rank: "asc" }],
     include: withImages,
   });
 }
 
 /** Cheapest and dearest active piece, in whole baht — drives the price filter. */
 export async function priceBounds(category?: string) {
-  const where: Prisma.ProductWhereInput = { status: "ACTIVE", ...(category ? { category } : {}) };
+  // Same reasoning as the filter: the slider's ends come only from pieces that
+  // actually carry a published price.
+  const where: Prisma.ProductWhereInput = {
+    status: "ACTIVE",
+    priceOnEnquiry: false,
+    ...(category ? { category } : {}),
+  };
   const result = await prisma.product.aggregate({
     where,
     _min: { priceMinor: true },

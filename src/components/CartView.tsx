@@ -39,7 +39,7 @@ export default function CartView() {
       <div>
         <ul className="divide-y divide-graphite/12 border-y border-graphite/12">
           {items.map((item) => (
-            <li key={item.productId} className="flex gap-6 py-7">
+            <li key={`${item.productId}:${item.variantId ?? ""}`} className="flex gap-6 py-7">
               <Link
                 href={`/products/${item.slug}`}
                 className="relative block h-32 w-26 shrink-0 overflow-hidden bg-plum"
@@ -73,6 +73,12 @@ export default function CartView() {
                     {item.illusionSet && " · Illusion set"}
                   </p>
 
+                  {item.variantLabel && (
+                    <p className="label-sm mt-1.5 text-plum/70">
+                      {item.variantAxis || "Option"} · {item.variantLabel}
+                    </p>
+                  )}
+
                   {item.note && (
                     <p className="mt-3 border-l border-gold/50 pl-3 text-sm font-light italic text-graphite/60">
                       {item.note}
@@ -84,7 +90,7 @@ export default function CartView() {
                   <div className="flex items-center border border-graphite/18">
                     <button
                       type="button"
-                      onClick={() => void setQuantity(item.productId, item.quantity - 1)}
+                      onClick={() => void setQuantity(item.productId, item.quantity - 1, item.variantId)}
                       disabled={busy}
                       aria-label={`Reduce quantity of ${item.name}`}
                       className="h-9 w-9 text-graphite/60 transition-colors hover:text-plum disabled:opacity-40"
@@ -96,7 +102,7 @@ export default function CartView() {
                     </span>
                     <button
                       type="button"
-                      onClick={() => void setQuantity(item.productId, item.quantity + 1)}
+                      onClick={() => void setQuantity(item.productId, item.quantity + 1, item.variantId)}
                       disabled={busy || item.quantity >= 10}
                       aria-label={`Increase quantity of ${item.name}`}
                       className="h-9 w-9 text-graphite/60 transition-colors hover:text-plum disabled:opacity-40"
@@ -107,7 +113,7 @@ export default function CartView() {
 
                   <button
                     type="button"
-                    onClick={() => void setQuantity(item.productId, 0)}
+                    onClick={() => void setQuantity(item.productId, 0, item.variantId)}
                     disabled={busy}
                     className="label-sm text-graphite/40 underline underline-offset-4 transition-colors hover:text-plum"
                   >

@@ -21,6 +21,10 @@ import {
 
 export type CartLine = {
   productId: string;
+  /** Null on a one-of-one piece. Two options of one piece are two lines. */
+  variantId: string | null;
+  variantLabel: string | null;
+  variantAxis: string | null;
   slug: string;
   name: string;
   category: string;
@@ -47,8 +51,16 @@ type Ctx = CartState & {
   ready: boolean;
   busy: boolean;
   wishlist: string[];
-  add: (productId: string, quantity?: number, note?: string) => Promise<boolean>;
-  setQuantity: (productId: string, quantity: number) => Promise<void>;
+  /**
+   * Returns the server's own refusal rather than a bare false, so the product
+   * page can say "Choose a ring size first" instead of a generic failure. The
+   * server is the only thing that knows why.
+   */
+  add: (
+    productId: string,
+    options?: { quantity?: number; note?: string; variantId?: string },
+  ) => Promise<{ ok: boolean; error?: string }>;
+  setQuantity: (productId: string, quantity: number, variantId?: string | null) => Promise<void>;
   clear: () => Promise<void>;
   toggleWishlist: (productId: string) => Promise<boolean>;
   refresh: () => Promise<void>;
@@ -84,31 +96,37 @@ export function CartProvider({ children }: { children: ReactNode }) {
     void refresh();
   }, [refresh]);
 
-  const add = useCallback<Ctx["add"]>(async (productId, quantity = 1, note) => {
+  const add = useCallback<Ctx["add"]>(async (productId, options = {}) => {
+    const { quantity = 1, note, variantId } = options;
     setBusy(true);
     try {
       const response = await fetch("/api/cart", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ productId, quantity, note }),
+        body: JSON.stringify({ productId, quantity, note, variantId }),
       });
-      if (!response.ok) return false;
+
+      if (!response.ok) {
+        const body = await response.json().catch(() => null);
+        return { ok: false, error: body?.error as string | undefined };
+      }
+
       setCart(await response.json());
-      return true;
+      return { ok: true };
     } catch {
-      return false;
+      return { ok: false };
     } finally {
       setBusy(false);
     }
   }, []);
 
-  const setQuantity = useCallback<Ctx["setQuantity"]>(async (productId, quantity) => {
+  const setQuantity = useCallback<Ctx["setQuantity"]>(async (productId, quantity, variantId) => {
     setBusy(true);
     try {
       const response = await fetch("/api/cart", {
         method: "PATCH",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ productId, quantity }),
+        body: JSON.stringify({ productId, quantity, variantId: variantId ?? undefined }),
       });
       if (response.ok) setCart(await response.json());
     } finally {

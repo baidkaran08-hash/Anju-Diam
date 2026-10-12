@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 import { ProductArt } from "@/lib/product-art";
 import { formatMoneyCompact } from "@/lib/money";
@@ -16,6 +16,7 @@ type Row = {
   category: string;
   status: string;
   priceMinor: number;
+  priceOnEnquiry: boolean;
   currency: string;
   diamondCaratW: number;
   metal: string;
@@ -23,6 +24,7 @@ type Row = {
   diamondCount: number;
   illusionSet: boolean;
   isFeatured: boolean;
+  soldOut: boolean;
   updatedAt: string;
   images: GalleryImage[];
 };
@@ -32,6 +34,69 @@ const STATUS_TONE: Record<string, string> = {
   DRAFT: "text-gold",
   ARCHIVED: "text-graphite/40",
 };
+
+/**
+ * One-click sold-out switch for a catalogue row.
+ *
+ * Optimistic: the label flips immediately and is put back if the server says
+ * no, so the studio never has to wait on a round trip to see its own click.
+ * It sits outside the row's link — a button nested in an anchor is invalid
+ * HTML and would open the piece as well as toggling it.
+ */
+function SoldOutToggle({ id, soldOut }: { id: string; soldOut: boolean }) {
+  const router = useRouter();
+  const [value, setValue] = useState(soldOut);
+  const [busy, setBusy] = useState(false);
+  const [failed, setFailed] = useState(false);
+
+  // The list is a server component refreshed after each save; follow it.
+  useEffect(() => setValue(soldOut), [soldOut]);
+
+  async function toggle() {
+    const next = !value;
+    setBusy(true);
+    setFailed(false);
+    setValue(next);
+
+    try {
+      const response = await fetch(`/api/admin/products/${id}`, {
+        method: "PATCH",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ soldOut: next }),
+      });
+      if (!response.ok) throw new Error("not saved");
+      router.refresh();
+    } catch {
+      setValue(!next);
+      setFailed(true);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <div className="shrink-0 text-right">
+      <button
+        type="button"
+        onClick={() => void toggle()}
+        disabled={busy}
+        aria-pressed={value}
+        className={`label-sm border px-3 py-2 transition-colors disabled:opacity-50 ${
+          value
+            ? "border-plum bg-plum text-ivory hover:bg-plum/90"
+            : "border-graphite/25 text-plum hover:border-plum"
+        }`}
+      >
+        {value ? "Sold out · put back" : "Mark sold out"}
+      </button>
+      {failed && (
+        <p role="alert" className="mt-1.5 text-xs text-[#B4485F]">
+          Not saved. Try again.
+        </p>
+      )}
+    </div>
+  );
+}
 
 export default function ProductTable({
   rows,
@@ -114,6 +179,17 @@ export default function ProductTable({
               </option>
             ))}
           </select>
+
+          <select
+            value={params.get("availability") ?? ""}
+            onChange={(event) => setParam({ availability: event.target.value || null })}
+            aria-label="Filter by availability"
+            className="label-sm border border-graphite/20 bg-transparent px-3 py-2.5 text-plum"
+          >
+            <option value="">All availability</option>
+            <option value="available">Available</option>
+            <option value="sold">Sold out</option>
+          </select>
         </div>
 
         <Link href="/admin/products/new" className="btn-gold">
@@ -136,10 +212,10 @@ export default function ProductTable({
       ) : (
         <ul className="divide-y divide-graphite/10 border-y border-graphite/12 bg-ivory">
           {rows.map((row) => (
-            <li key={row.id}>
+            <li key={row.id} className="flex items-center gap-4 pr-4 transition-colors hover:bg-sand/50">
               <Link
                 href={`/admin/products/${row.id}`}
-                className="flex items-center gap-5 p-4 transition-colors hover:bg-sand/50"
+                className="flex min-w-0 flex-1 items-center gap-5 p-4"
               >
                 <div className="relative h-16 w-14 shrink-0 overflow-hidden bg-plum">
                   {row.images[0] ? (
@@ -155,6 +231,7 @@ export default function ProductTable({
                     <span className="text-base text-plum">{row.name}</span>
                     {row.isFeatured && <span className="label-sm text-gold">Featured</span>}
                     {row.illusionSet && <span className="label-sm text-wine">Illusion</span>}
+                    {row.soldOut && <span className="label-sm text-[#B4485F]">Sold out</span>}
                   </div>
                   <p className="label-sm mt-1.5 text-graphite/40">
                     {row.category.toLowerCase()} · {row.diamondCaratW.toFixed(2)} ct ·{" "}
@@ -166,13 +243,17 @@ export default function ProductTable({
 
                 <div className="shrink-0 text-right">
                   <p className="text-sm tabular-nums text-graphite">
-                    {formatMoneyCompact(row.priceMinor, row.currency)}
+                    {row.priceOnEnquiry
+                      ? "On enquiry"
+                      : formatMoneyCompact(row.priceMinor, row.currency)}
                   </p>
                   <p className={`label-sm mt-1.5 ${STATUS_TONE[row.status] ?? ""}`}>
                     {row.status.charAt(0) + row.status.slice(1).toLowerCase()}
                   </p>
                 </div>
               </Link>
+
+              <SoldOutToggle id={row.id} soldOut={row.soldOut} />
             </li>
           ))}
         </ul>

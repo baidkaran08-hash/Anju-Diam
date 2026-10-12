@@ -4,6 +4,7 @@ import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { studioSummary } from "@/lib/admin-products";
 import { mailIsConfigured } from "@/lib/mailer";
+import { storageIsEphemeral } from "@/lib/storage";
 import { formatMoneyCompact } from "@/lib/money";
 import { enquiryKindLabel, type EnquiryKind } from "@/lib/enums";
 import { LOW_STOCK_AT } from "@/lib/stock";
@@ -25,6 +26,17 @@ export default async function StudioOverview() {
 
   return (
     <div className="space-y-14">
+      {storageIsEphemeral() && (
+        <p className="border-l-2 border-[#B4485F] bg-ivory px-5 py-4 text-sm font-light text-graphite/75">
+          <strong className="font-medium">Photographs uploaded here will not survive the next
+          release.</strong>{" "}
+          This host wipes its disk on every deploy. Existing photography is safe — it is served as
+          part of the site — but anything uploaded from this screen is temporary until object
+          storage is connected. Set <code className="text-xs">S3_BUCKET</code> and its keys to fix
+          it permanently.
+        </p>
+      )}
+
       {!mailIsConfigured() && (
         <p className="border-l-2 border-gold bg-ivory px-5 py-4 text-sm font-light text-graphite/75">
           <strong className="font-medium">Email alerts are off.</strong> Enquiries are being stored

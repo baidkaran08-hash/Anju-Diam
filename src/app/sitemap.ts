@@ -3,6 +3,11 @@ import type { MetadataRoute } from "next";
 import { prisma } from "@/lib/prisma";
 import { categories, site } from "@/lib/site";
 
+// Rebuilt at most hourly, so a piece added in the studio reaches the sitemap
+// without waiting for the next deploy. Studio saves also refresh it at once —
+// see src/lib/revalidate.ts — this is the backstop if that ever misses.
+export const revalidate = 3600;
+
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const products = await prisma.product.findMany({
     where: { status: "ACTIVE" },

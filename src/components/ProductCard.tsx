@@ -6,6 +6,7 @@ import ProductMedia, { type MediaProduct } from "@/components/ProductMedia";
 import { useCart } from "@/components/CartProvider";
 import { Price } from "@/components/CurrencyProvider";
 import { metalShortLabel, stoneShapeLabel, type Metal, type StoneShape } from "@/lib/enums";
+import { availability, priceRangeMinor, type VariantLike } from "@/lib/stock";
 import type { ArtTone } from "@/lib/product-art";
 
 export type CardProduct = MediaProduct & {
@@ -18,6 +19,17 @@ export type CardProduct = MediaProduct & {
   metal: string;
   stoneShape: string;
   illusionSet: boolean;
+  /**
+   * Optional so the wishlist and any other caller that selects a narrower row
+   * still type-checks. Absent behaves exactly as before: one price, always
+   * orderable.
+   */
+  priceOnEnquiry?: boolean;
+  madeToOrder?: boolean;
+  /** The studio's sold-out switch. Absent means not sold. */
+  soldOut?: boolean;
+  stock?: number;
+  variants?: VariantLike[];
 };
 
 export default function ProductCard({
@@ -34,11 +46,25 @@ export default function ProductCard({
   const { wishlist, toggleWishlist } = useCart();
   const saved = wishlist.includes(product.id);
 
+  const stockable = {
+    madeToOrder: product.madeToOrder ?? true,
+    soldOut: product.soldOut ?? false,
+    stock: product.stock ?? 0,
+    priceMinor: product.priceMinor,
+    variants: product.variants ?? [],
+  };
+  const state = availability(stockable);
+  const range = priceRangeMinor(stockable);
+
   return (
     <article className="group relative">
       <Link href={`/products/${product.slug}`} className="block">
         <div className="relative aspect-[4/5] overflow-hidden bg-plum">
-          <div className="absolute inset-0 transition-transform duration-[1400ms] ease-[cubic-bezier(0.16,1,0.3,1)] group-hover:scale-[1.045]">
+          <div
+            className={`absolute inset-0 transition-transform duration-[1400ms] ease-[cubic-bezier(0.16,1,0.3,1)] group-hover:scale-[1.045] ${
+              state.soldOut ? "opacity-70" : ""
+            }`}
+          >
             <ProductMedia
               product={product}
               tone={tone}
@@ -47,11 +73,21 @@ export default function ProductCard({
             />
           </div>
 
-          {product.illusionSet && (
-            <span className="glass-chip label-sm absolute left-4 top-4 rounded-full px-3 py-1.5 text-gold">
-              Illusion
-            </span>
-          )}
+          {/* Stacked top-left. The sold chip used to sit top-right, directly
+              under the wishlist heart, so the two overlapped. */}
+          <div className="absolute left-4 top-4 flex flex-col items-start gap-2">
+            {!state.orderable && (
+              <span className="glass-chip label-sm rounded-full px-3 py-1.5 text-ivory">
+                {state.soldOut ? "Sold out" : "Spoken for"}
+              </span>
+            )}
+
+            {product.illusionSet && (
+              <span className="glass-chip label-sm rounded-full px-3 py-1.5 text-gold">
+                Illusion
+              </span>
+            )}
+          </div>
 
           {/* Quick view affordance, desktop only. */}
           <span className="glass-chip glass-r-sm label-sm pointer-events-none absolute inset-x-4 bottom-4 hidden translate-y-3 py-3 text-center text-ivory opacity-0 transition-all duration-700 ease-[cubic-bezier(0.16,1,0.3,1)] group-hover:translate-y-0 group-hover:opacity-100 md:block">
@@ -90,13 +126,31 @@ export default function ProductCard({
               {product.name}
             </Link>
           </h3>
-          <Price minor={product.priceMinor} className="shrink-0 text-sm font-light tabular-nums" />
+          {product.priceOnEnquiry ? (
+            <span className="shrink-0 whitespace-nowrap text-sm font-light text-graphite/50">
+              On enquiry
+            </span>
+          ) : (
+            <span className="shrink-0 whitespace-nowrap text-sm font-light tabular-nums">
+              {range.min !== range.max && <span className="text-graphite/40">from </span>}
+              <Price minor={range.min} />
+            </span>
+          )}
         </div>
 
+        {/* Built from whatever the piece actually knows — a stock-sheet import
+            often has carat and metal but no recorded cut, and an empty segment
+            would leave a stranded separator on the card. */}
         <p className="label-sm mt-2.5 text-graphite/45">
-          {product.diamondCaratW.toFixed(2)} ct ·{" "}
-          {stoneShapeLabel[product.stoneShape as StoneShape] ?? product.stoneShape} ·{" "}
-          {metalShortLabel[product.metal as Metal] ?? product.metal} gold
+          {[
+            product.diamondCaratW > 0 ? `${product.diamondCaratW.toFixed(2)} ct` : "",
+            product.stoneShape
+              ? stoneShapeLabel[product.stoneShape as StoneShape] ?? product.stoneShape
+              : "",
+            product.metal ? `${metalShortLabel[product.metal as Metal] ?? product.metal} gold` : "",
+          ]
+            .filter(Boolean)
+            .join(" · ")}
         </p>
       </div>
 

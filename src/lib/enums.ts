@@ -52,6 +52,14 @@ export type EnquiryKind = (typeof ENQUIRY_KINDS)[number];
 export const ROLES = ["CUSTOMER", "ADMIN"] as const;
 export type Role = (typeof ROLES)[number];
 
+/**
+ * Grading laboratories. GIA first because it is what the house quotes by
+ * default; OTHER exists so a legitimate report from a smaller lab can still be
+ * recorded rather than being dropped at import.
+ */
+export const CERT_LABS = ["GIA", "IGI", "HRD", "AGS", "GII", "OTHER"] as const;
+export type CertLab = (typeof CERT_LABS)[number];
+
 // ── Display helpers ─────────────────────────────────────────────────────────
 
 export const metalLabel: Record<Metal, string> = {
@@ -85,6 +93,27 @@ export const orderStatusLabel: Record<OrderStatus, string> = {
   DELIVERED: "Delivered",
   CANCELLED: "Cancelled",
 };
+
+export const certLabLabel: Record<CertLab, string> = {
+  GIA: "GIA",
+  IGI: "IGI",
+  HRD: "HRD Antwerp",
+  AGS: "AGS",
+  GII: "GII",
+  OTHER: "Independent report",
+};
+
+/**
+ * Suggested variant axes. Free text on the product rather than an enum — the
+ * studio will eventually want something none of these cover, and an enum would
+ * make that a code change.
+ */
+export const VARIANT_AXIS_SUGGESTIONS = [
+  "Ring size",
+  "Chain length",
+  "Bangle size",
+  "Metal",
+] as const;
 
 export const enquiryKindLabel: Record<EnquiryKind, string> = {
   CONTACT: "General enquiry",

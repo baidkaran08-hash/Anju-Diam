@@ -49,6 +49,10 @@ const CONTENT_TYPES: Record<string, string> = {
   ".jpeg": "image/jpeg",
   ".png": "image/png",
   ".avif": "image/avif",
+  // Grading reports. An allow-list rather than a lookup of every known type:
+  // anything not named here is refused by the media route, which is what keeps
+  // a stray upload from being served back as something executable.
+  ".pdf": "application/pdf",
 };
 
 export function contentTypeFor(filePath: string) {

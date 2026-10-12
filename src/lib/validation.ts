@@ -2,6 +2,7 @@ import { z } from "zod";
 
 import {
   CATEGORIES,
+  CERT_LABS,
   ENQUIRY_KINDS,
   ENQUIRY_STATUSES,
   METALS,
@@ -72,12 +73,17 @@ export const enquirySchema = z.object({
 
 export const cartItemSchema = z.object({
   productId: z.string().min(1).max(64),
+  /// Omitted for a one-of-one piece; required by the route when the piece has
+  /// variants, because "a ring" with no size is not something the atelier can
+  /// actually quote.
+  variantId: z.string().min(1).max(64).optional().or(z.literal("")),
   quantity: z.coerce.number().int().min(1).max(10).default(1),
   note: z.string().trim().max(400).optional().or(z.literal("")),
 });
 
 export const cartUpdateSchema = z.object({
   productId: z.string().min(1).max(64),
+  variantId: z.string().min(1).max(64).optional().or(z.literal("")),
   quantity: z.coerce.number().int().min(0).max(10),
 });
 
@@ -146,7 +152,9 @@ export const productWriteSchema = z.object({
     .number({ invalid_type_error: "Enter the gross weight in grams." })
     .min(0, "Weight cannot be negative.")
     .max(10_000),
-  metal: z.enum(METALS).default("YELLOW_GOLD_18K"),
+  // "" means the house never recorded it. The storefront hides the row rather
+  // than printing a metal it was never told.
+  metal: z.union([z.enum(METALS), z.literal("")]).default("YELLOW_GOLD_18K"),
   metalPurity: z.string().trim().max(20).default("18K"),
 
   diamondCount: z.coerce
@@ -166,6 +174,90 @@ export const productWriteSchema = z.object({
   videoUrl: z.string().trim().url("That is not a valid URL.").max(500).optional().or(z.literal("")),
   isFeatured: z.coerce.boolean().default(false),
   rank: z.coerce.number().int().min(0).max(100_000).default(500),
+
+  priceOnEnquiry: z.coerce.boolean().default(false),
+  madeToOrder: z.coerce.boolean().default(true),
+  soldOut: z.coerce.boolean().default(false),
+  stock: z.coerce
+    .number({ invalid_type_error: "Enter the number of units on hand." })
+    .int("Whole units only.")
+    .min(0)
+    .max(100_000)
+    .default(0),
+  variantAxis: z.string().trim().max(40).optional().or(z.literal("")),
+});
+
+/**
+ * The one-click switch on the catalogue list. Strict boolean on purpose: unlike
+ * the form fields above, nothing legitimate sends this as a string, and
+ * z.coerce.boolean() would read the string "false" as true.
+ */
+export const soldOutSchema = z.object({ soldOut: z.boolean() });
+
+// ── Admin: variants and certificates ────────────────────────────────────────
+
+export const productVariantSchema = z.object({
+  label: text(1, 40, "The option label"),
+  sku: z.string().trim().max(60).optional().or(z.literal("")),
+  /**
+   * Whole baht, like `price` above, and null when the option costs the same as
+   * the piece. An empty string arrives from an untouched form field, so it has
+   * to mean "no override" rather than "free".
+   */
+  price: z
+    .union([z.coerce.number().min(0).max(1_000_000_000), z.literal(""), z.null()])
+    .optional()
+    .transform((value) => (value === "" || value === undefined || value === null ? null : value)),
+  stock: z.coerce.number().int().min(0).max(100_000).default(0),
+  position: z.coerce.number().int().min(0).max(200).default(0),
+});
+
+export const productVariantsSchema = z.object({
+  variants: z
+    .array(productVariantSchema)
+    .max(60, "Sixty options is the limit for one piece.")
+    .superRefine((variants, ctx) => {
+      const seen = new Set<string>();
+      variants.forEach((variant, index) => {
+        const key = variant.label.trim().toLowerCase();
+        if (seen.has(key)) {
+          ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            path: [index, "label"],
+            message: `"${variant.label}" is listed twice.`,
+          });
+        }
+        seen.add(key);
+      });
+    }),
+});
+
+/** Accepts "2024-03-11" from a date input, and blank for "not recorded". */
+const optionalDate = z
+  .union([z.string().trim(), z.null()])
+  .optional()
+  .transform((value) => (value ? value : null))
+  .refine((value) => value === null || !Number.isNaN(Date.parse(value)), {
+    message: "That is not a date we can read.",
+  });
+
+export const certificateSchema = z.object({
+  lab: z.enum(CERT_LABS).default("GIA"),
+  number: text(1, 40, "The report number"),
+  documentUrl: z.string().trim().max(500).optional().or(z.literal("")),
+  caratW: z
+    .union([z.coerce.number().min(0).max(1_000), z.literal(""), z.null()])
+    .optional()
+    .transform((value) => (value === "" || value === undefined || value === null ? null : value)),
+  colour: z.string().trim().max(6).optional().or(z.literal("")),
+  clarity: z.string().trim().max(8).optional().or(z.literal("")),
+  cut: z.string().trim().max(24).optional().or(z.literal("")),
+  issuedOn: optionalDate,
+  position: z.coerce.number().int().min(0).max(50).default(0),
+});
+
+export const certificatesSchema = z.object({
+  certificates: z.array(certificateSchema).max(24, "Twenty-four reports is the limit."),
 });
 
 export const productImageSchema = z.object({

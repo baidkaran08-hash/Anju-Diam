@@ -318,6 +318,39 @@ it to Active. A draft returns a real 404 on its public URL, not a soft one.
 Price is entered in **whole baht**; it is converted to satang before storage,
 because money is held as an integer throughout.
 
+### Marking a piece sold out
+
+Two ways, both one click:
+
+- **Catalogue list** — every row has a **Mark sold out** button. Click it and the
+  piece is marked immediately; click **Sold out · put back** to reverse it.
+- **Inside a piece** — Availability → **Mark this piece as sold out**, then Save.
+
+A sold piece **stays on the website**, so its page, photographs and search
+ranking are kept. It shows a **Sold out** label on the grid and the product page,
+its Add to selection button is disabled (and so is every size), and it is
+refused at the cart and at checkout even from a stale tab. In place of the
+button the page offers an enquiry for a similar piece. In the default sort sold
+pieces sink to the end, and they are left out of "related pieces".
+
+It overrides everything else: made to order, counted stock and per-size stock are
+all ignored while the switch is on. Counted stock running out on its own still
+reads **Spoken for** rather than Sold out — that wording is the studio's call,
+made with this switch, not an inference from a number.
+
+Filter the list by **Available / Sold out** with the dropdown beside the
+collection filter.
+
+**Changes show immediately.** Every page that lists pieces is rendered fresh on
+each visit (the currency cookie in `app/layout.tsx` guarantees it), and every
+studio save also calls `revalidateCatalogue()` in `src/lib/revalidate.ts` as a
+belt-and-braces refresh. Nothing waits for a cache to expire.
+
+**Database change for this feature.** It adds one column. Run
+`prisma/manual/2026-10-sold-out.sql` on the live database **before** deploying
+the code, or every page will error on the missing column. It is additive and
+harmless to the currently-deployed code.
+
 ### Photographs
 
 Open a piece and drop files onto the gallery panel. On upload each file is
@@ -329,6 +362,58 @@ files are never enlarged, and the studio warns you when a file lands under
 The first image is the lead: it is what the grid, the cart line and the product
 page show. Reorder with the arrows. **The moment a piece has one photograph the
 generated artwork disappears for it everywhere** — no setting to flip.
+
+### Sizes and other options
+
+A piece is **one-of-one** by default: it sells on its own row, with no selector
+on the product page. That is the house norm and most of the catalogue stays that
+way.
+
+When a piece does come in sizes, set **Options vary by** on the piece (e.g.
+`Ring size`, `Chain length`) — that string is the label the customer sees — then
+add the options themselves in the **Options** panel. Each carries its own count
+on hand, an optional price override, and an optional house reference. Leave the
+price blank and the option charges the piece's own price, which is the usual
+case. For rings there is an **Add US 4–10** shortcut rather than typing thirteen
+rows.
+
+The storefront then requires a choice before anything can be added to a
+selection, strikes through whatever is spoken for, and says "Only 2 remaining"
+once a count drops to three or fewer.
+
+Editing options **matches rows by label**, so correcting a typo elsewhere in the
+panel never disturbs the option ids — anything already sitting in a customer's
+selection stays there. Only an option you actually remove is deleted.
+
+### Made to order, or counted
+
+**How it is sold** on each piece decides whether stock means anything:
+
+| Setting | Behaviour |
+| ------- | --------- |
+| **Made to order** (default) | Always orderable. Every count is ignored — the atelier cuts to commission, so counting units would be fiction. |
+| Counted | The storefront stops selling at zero and says "Enquire for availability" instead. |
+
+For a counted piece **with** options, availability is the sum of the options'
+counts and the piece-level number is not used at all — one number cannot
+disagree with the other that way. For a counted piece with no options, the
+piece-level count is it.
+
+Checkout re-checks availability before writing the order and draws stock down in
+the same transaction, so a piece cannot be sold twice while two people have it
+in their selection. Whoever loses that race gets told which piece went and is
+pointed at the enquiry form.
+
+### Grading reports
+
+The **Grading reports** panel holds the GIA, IGI or HRD report for a piece: the
+laboratory, the report number, and optionally carat, colour, clarity, cut and
+issue date. Attach the scan and it uploads immediately — a PDF is stored
+**byte-identical**, because a report is a document rather than a photograph,
+while a JPEG or PNG scan is converted to WebP at high quality.
+
+Reports appear on the product page under the specification, with the scan linked
+for the customer to open.
 
 ### Where the files go
 
@@ -357,12 +442,60 @@ npm run catalogue:import -- data/catalogue.csv --replace   # + archive anything 
 importer validates the entire file before writing a single row — a half-imported
 catalogue is worse than a rejected one.
 
+Run it again over the same file and it **updates** rather than duplicates:
+pieces are matched by `slug`, so the sheet stays the source of truth and a
+correction is just another import.
+
+### Straight from a Google Sheet
+
+Paste the ordinary browser URL — no export step, no download:
+
+```bash
+npm run catalogue:import -- "https://docs.google.com/spreadsheets/d/YOUR_ID/edit#gid=0" --dry-run
+```
+
+The sheet has to be readable without signing in: **Share → General access →
+Anyone with the link → Viewer**. Nothing is ever written back to it; the
+importer only reads. The tab in the URL (`#gid=`) is the tab imported, so a
+workbook with several tabs imports the one you were looking at.
+
+If the sheet is still private, Google answers with a sign-in *page* rather than
+an error, so the importer checks for that and tells you to fix the sharing
+instead of reporting a confusing "0 rows found".
+
+### Photographs
+
 Photographs go in `public/products/<slug>/` and are referenced in the `images`
 column, pipe-separated, lead image first:
 
 ```
 /products/aurelia-solitaire-ring/01.webp|/products/aurelia-solitaire-ring/02.webp
 ```
+
+Photographs uploaded through the studio live elsewhere (see *Where the files
+go*) and are unaffected by an import.
+
+### Sizes, stock and reports in the file
+
+Four further columns carry what the studio panels set by hand:
+
+| Column | Meaning |
+| ------ | ------- |
+| `madeToOrder` | `true`/`false`, **defaults true**. An absent column keeps the whole catalogue always-orderable, which is the safe default — the opposite would take everything off sale on the first import. |
+| `stock` | Units on hand. Read only when `madeToOrder` is false and the piece has no options. |
+| `variantAxis` | What the options vary by, e.g. `Ring size`. Blank means one-of-one. |
+| `variants` | `label:stock:price`, pipe-separated. Price is whole baht and optional — blank charges the piece's own price. |
+| `certificates` | `lab:number:carat:colour:clarity`, pipe-separated. Everything after the number is optional. |
+
+```
+variants        US 6:2|US 6.5:1|US 7:0:104000
+certificates    GIA:2141438171:0.72:G:VS1
+```
+
+Re-importing **keeps the option ids** for labels that still exist, so a customer's
+selection survives, and **keeps any uploaded scan** already attached to a report
+with the same number — the sheet cannot know that file's URL, so it is not
+allowed to erase it.
 
 ---
 
@@ -521,6 +654,8 @@ second as the hero headline. Worth confirming which the client wants where.
 
 | Command                     | Does                                              |
 | --------------------------- | ------------------------------------------------- |
+| `npm run admin:create`      | Create or reset one studio account, nothing else  |
+| `npm run stock:import`      | Import the house stock sheet, photographs and all |
 | `npm run dev`               | Development server                                |
 | `npm run build`             | Production build (runs `prisma generate` first)   |
 | `npm run typecheck`         | `tsc --noEmit`                                    |
