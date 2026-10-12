@@ -32,7 +32,7 @@ export default async function CollectionsPage({
       <PageHero
         eyebrow="The Catalogue"
         title="Every piece in the house."
-        body="Two hundred and fifty pieces, each made to order in the Bangkok atelier. Filter by metal, setting or price — or write to us, because a great deal of what we make never appears here."
+        body="Two hundred pieces from the Bangkok atelier, each in natural diamond and 18-karat gold. Browse by collection, or write to us for pricing — a great deal of what we make never appears here."
         frame={118}
         breadcrumb={[{ href: "/", label: "Home" }]}
       />
