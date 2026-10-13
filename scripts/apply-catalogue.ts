@@ -203,13 +203,29 @@ export async function secureStudio(prisma: PrismaClient) {
     return;
   }
 
-  const passwordHash = await bcrypt.hash(password, 12);
-  await prisma.user.upsert({
-    where: { email },
-    update: { passwordHash, role: "ADMIN" },
-    create: { email, name: "Anju Diam Studio", passwordHash, role: "ADMIN" },
-  });
-  console.log(`[studio] administrator ready: ${email}`);
+  // The env password only SEEDS the account. Once the account exists, the
+  // password belongs to whoever changed it in Studio (Password tab) and a
+  // redeploy must not reset it. To force a reset from the env, set
+  // RESET_ADMIN_PASSWORD=1 for one deploy, then remove it.
+  const existing = await prisma.user.findUnique({ where: { email } });
+  if (!existing) {
+    await prisma.user.create({
+      data: {
+        email,
+        name: "Anju Diam Studio",
+        passwordHash: await bcrypt.hash(password, 12),
+        role: "ADMIN",
+      },
+    });
+    console.log(`[studio] administrator created: ${email}`);
+  } else {
+    const reset = process.env.RESET_ADMIN_PASSWORD === "1";
+    await prisma.user.update({
+      where: { id: existing.id },
+      data: { role: "ADMIN", ...(reset ? { passwordHash: await bcrypt.hash(password, 12) } : {}) },
+    });
+    console.log(`[studio] administrator ready: ${email}${reset ? " (password reset from env)" : ""}`);
+  }
 
   // Lock the published demo login if it is a different account and still default.
   if (email !== DEFAULT_ADMIN_EMAIL) {
