@@ -1,7 +1,7 @@
 import Image from "next/image";
 import Link from "next/link";
 
-import manifest from "../../public/frames/manifest.json";
+import manifest from "../../public/frames/hero/manifest.json";
 import HomeHero from "@/components/HomeHero";
 import Reveal from "@/components/Reveal";
 import SectionHeading from "@/components/SectionHeading";

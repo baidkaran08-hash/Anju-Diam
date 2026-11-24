@@ -24,9 +24,10 @@
  * and roughly double the bitrate per frame — so the ultra tier is now only a
  * 1.8x upscale rather than 2.7x, and it shows.
  *
- *   npx tsx scripts/build-frames.ts [sourceDir]
+ *   npx tsx scripts/build-frames.ts [sourceDir] [outDir]
  *
  * sourceDir defaults to ./raw-frames — unzip the frame archive into it first.
+ * outDir defaults to public/frames/hero.
  */
 
 import { mkdir, readdir, writeFile, rm } from "node:fs/promises";
@@ -34,7 +35,20 @@ import path from "node:path";
 import sharp from "sharp";
 
 const SOURCE_DIR = process.argv[2] ?? path.join(process.cwd(), "raw-frames");
-const OUT_DIR = path.join(process.cwd(), "public", "frames");
+// The hero sequence lives in its own folder. public/frames/ultra (outside this
+// folder) holds the stills the interior pages and category tiles point at by
+// frame number, and must not be rebuilt along with the film.
+const OUT_DIR = process.argv[3]
+  ? path.resolve(process.argv[3])
+  : path.join(process.cwd(), "public", "frames", "hero");
+
+/**
+ * Set FRAMES_PRECLEANED=1 when the source frames already had the watermark
+ * removed (scripts/clean-watermark.py) and the row interpolation below should
+ * be skipped. The interpolation only works where the backdrop is a smooth
+ * gradient; where an arm or fabric edge crosses the corner it smears.
+ */
+const PRECLEANED = process.env.FRAMES_PRECLEANED === "1";
 
 /** The star watermark's bounding box in the 1920x1080 source, with margin. */
 const STAR = { x0: 1688, x1: 1796, y0: 843, y1: 955 };
@@ -132,7 +146,7 @@ async function main() {
     const frameNo = String(index + 1).padStart(4, "0");
 
     // The watermark repair is done once per frame, then reused for all tiers.
-    const repaired = await (await despark(src)).png().toBuffer();
+    const repaired = await (PRECLEANED ? sharp(src) : await despark(src)).png().toBuffer();
 
     for (const variant of VARIANTS) {
       const height = Math.round((srcH / srcW) * variant.width);
@@ -154,7 +168,7 @@ async function main() {
 
   // A blurred first frame, inlined as a data URI, paints instantly behind the
   // canvas so the hero is never a black rectangle on a cold load.
-  const posterBuffer = await (await despark(path.join(SOURCE_DIR, entries[0]!)))
+  const posterBuffer = await (PRECLEANED ? sharp(path.join(SOURCE_DIR, entries[0]!)) : await despark(path.join(SOURCE_DIR, entries[0]!)))
     .resize(32)
     .blur(1.2)
     .webp({ quality: 40 })
@@ -162,7 +176,7 @@ async function main() {
 
   const manifest = {
     source: `${entries.length} frames, ${srcW}x${srcH} JPEG`,
-    pipeline: "star watermark painted out by row interpolation · lanczos3 resample · unsharp mask · WebP",
+    pipeline: `${PRECLEANED ? "star watermark removed by edge-aware inpainting" : "star watermark painted out by row interpolation"} · lanczos3 resample · unsharp mask · WebP`,
     aspectRatio: Number((srcW / srcH).toFixed(4)),
     /** Average backdrop tone, used as the canvas ground so letterboxing blends. */
     backdrop: "#A48769",

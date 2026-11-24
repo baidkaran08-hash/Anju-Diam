@@ -120,7 +120,7 @@ export default function FrameSequence({
     const promises = new Array<Promise<HTMLImageElement | null> | null>(frameCount);
 
     const frameUrl = (index: number) =>
-      `/frames/${tier}/frame-${String(index + 1).padStart(4, "0")}.webp`;
+      `/frames/hero/${tier}/frame-${String(index + 1).padStart(4, "0")}.webp`;
 
     function loadFrame(index: number): Promise<HTMLImageElement | null> {
       if (loaded[index]) return Promise.resolve(images[index]);
@@ -193,7 +193,7 @@ export default function FrameSequence({
       const { width, height } = canvas!;
       // The backdrop's own average tone, so any letterboxing on an extreme
       // aspect ratio blends into the shot instead of framing it in black.
-      ctx!.fillStyle = "#A48769";
+      ctx!.fillStyle = "#9D7662";
       ctx!.fillRect(0, 0, width, height);
 
       // On mobile the frame is pulled up and shown smaller so the chapter copy
