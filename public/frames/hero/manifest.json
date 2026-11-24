@@ -1,0 +1,33 @@
+{
+  "source": "536 frames, 1908x1080 JPEG",
+  "pipeline": "star watermark removed by edge-aware inpainting · lanczos3 resample · unsharp mask · WebP",
+  "aspectRatio": 1.7667,
+  "backdrop": "#A48769",
+  "frameCount": 536,
+  "pad": 4,
+  "format": "webp",
+  "poster": "data:image/webp;base64,UklGRnoAAABXRUJQVlA4IG4AAADwBACdASogABIAPt1YpU2opSOiN/qoARAbiWMAtSFAALdN5RrUu23uwMReloeIjAAAziSDNtxzcjRzhCOF8VuTmc+0RiKAeXrp6uWay/ByaVNikuj6PsbHy4gLI4Wyba4A/GxNsLyXlgP61QQAAA==",
+  "variants": [
+    {
+      "name": "ultra",
+      "width": 3456,
+      "height": 1956,
+      "quality": 72,
+      "totalMB": 34.01
+    },
+    {
+      "name": "desktop",
+      "width": 2304,
+      "height": 1304,
+      "quality": 78,
+      "totalMB": 22.97
+    },
+    {
+      "name": "mobile",
+      "width": 1152,
+      "height": 652,
+      "quality": 78,
+      "totalMB": 9.57
+    }
+  ]
+}
